@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { formatResumeCompletion } from "@/utils/format";
+import { ResumeDialog } from "@/components/shared/resume-dialog";
 
 export function CandidateProfilePage() {
   const { profile } = useCurrentUser();
@@ -21,6 +22,8 @@ export function CandidateProfilePage() {
   const queryClient = useQueryClient();
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [isOpeningResume, setIsOpeningResume] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -88,7 +91,8 @@ export function CandidateProfilePage() {
     setIsOpeningResume(true);
     try {
       const url = await getResumeSignedUrl(profile.resume_url);
-      window.open(url, "_blank", "noopener,noreferrer");
+      setPreviewUrl(url);
+      setIsPreviewOpen(true);
     } catch {
       toast.error("Couldn't open your resume.");
     } finally {
@@ -197,7 +201,7 @@ export function CandidateProfilePage() {
               onClick={() =>
                 experienceArray.append({ title: "", company: "", start_date: "", end_date: "", description: "" })
               }
-              className="inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wide text-signal hover:underline"
+              className="inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wide text-signal hover:underline cursor-pointer"
             >
               <Plus className="h-3 w-3" /> Add
             </button>
@@ -220,7 +224,7 @@ export function CandidateProfilePage() {
                 <button
                   type="button"
                   onClick={() => experienceArray.remove(index)}
-                  className="mt-2 inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wide text-ink-soft hover:text-signal"
+                  className="mt-2 inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wide text-ink-soft hover:text-signal cursor-pointer"
                 >
                   <Trash2 className="h-3 w-3" /> Remove
                 </button>
@@ -238,7 +242,7 @@ export function CandidateProfilePage() {
             <button
               type="button"
               onClick={() => educationArray.append({ school: "", degree: "", start_date: "", end_date: "" })}
-              className="inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wide text-signal hover:underline"
+              className="inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wide text-signal hover:underline cursor-pointer"
             >
               <Plus className="h-3 w-3" /> Add
             </button>
@@ -255,7 +259,7 @@ export function CandidateProfilePage() {
                 <button
                   type="button"
                   onClick={() => educationArray.remove(index)}
-                  className="mt-2 inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wide text-ink-soft hover:text-signal"
+                  className="mt-2 inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wide text-ink-soft hover:text-signal cursor-pointer"
                 >
                   <Trash2 className="h-3 w-3" /> Remove
                 </button>
@@ -295,6 +299,16 @@ export function CandidateProfilePage() {
           {mutation.isPending ? "Saving —" : "Save profile"}
         </Button>
       </form>
+
+      {/* Resume Preview Modal */}
+      {profile?.resume_url && (
+        <ResumeDialog
+          isOpen={isPreviewOpen}
+          onOpenChange={setIsPreviewOpen}
+          resumeUrl={previewUrl}
+          candidateName={`${profile.first_name ?? ""} ${profile.last_name ?? ""}`}
+        />
+      )}
     </div>
   );
 }

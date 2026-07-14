@@ -4,29 +4,35 @@
   ==========================================================
   HIRRD design tokens — Swiss / International Typographic Style
 
-  Palette
-    --color-paper   #FAFAF8  cool off-white ground, not the cliché warm cream
-    --color-ink      #15161A  near-black, primary text and rules
-    --color-grid     #D8D5CB  hairline rule / grid color
-    --color-signal   #D6001C  true Swiss red — the one accent, used sparingly
-    --color-meadow   #1E7A46  status: accepted
-    --color-amber    #B4780A  status: interview / in progress
-
-  Type
-    Display : Archivo Expanded 700/800 — used only for numerals, section
-              markers, and the wordmark. Never for body copy.
-    Body/UI : IBM Plex Sans — everything a person reads or clicks.
-    Data    : IBM Plex Mono — the running index rail, job metadata,
-              salary figures, dates, ids. This is the signature: HIRRD's
-              job listings are numbered like a Swiss timetable, because
-              a list of open roles genuinely is a sequence.
-
-  Layout: sharp corners throughout (radius 0), hairline 1px rules,
-  strict 12-column grid, deliberate asymmetry in the header/hero.
+  Palette (dynamic depending on light/dark mode)
+    --color-paper: cool off-white ground / deep charcoal in dark mode
+    --color-ink: near-black / near-white in dark mode
+    --color-grid: hairline rule
+    --color-signal: true Swiss red accent
   ==========================================================
 */
 
 @theme {
+  --color-paper: var(--color-paper);
+  --color-paper-dim: var(--color-paper-dim);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-grid: var(--color-grid);
+  --color-signal: var(--color-signal);
+  --color-signal-deep: var(--color-signal-deep);
+  --color-meadow: var(--color-meadow);
+  --color-meadow-dim: var(--color-meadow-dim);
+  --color-amber: var(--color-amber);
+  --color-amber-dim: var(--color-amber-dim);
+
+  --font-display: "Archivo Expanded", "Archivo", sans-serif;
+  --font-sans: "IBM Plex Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  --radius-none: 0px;
+}
+
+:root {
   --color-paper: #fafaf8;
   --color-paper-dim: #f1efe7;
   --color-ink: #15161a;
@@ -38,12 +44,20 @@
   --color-meadow-dim: #e3f0e7;
   --color-amber: #b4780a;
   --color-amber-dim: #f5ead4;
+}
 
-  --font-display: "Archivo Expanded", "Archivo", sans-serif;
-  --font-sans: "IBM Plex Sans", sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
-
-  --radius-none: 0px;
+.dark {
+  --color-paper: #121316;
+  --color-paper-dim: #1c1d22;
+  --color-ink: #f5f5f7;
+  --color-ink-soft: #a0a2ad;
+  --color-grid: #2f313a;
+  --color-signal: #ff3b30;
+  --color-signal-deep: #d6001c;
+  --color-meadow: #30d158;
+  --color-meadow-dim: #162a1c;
+  --color-amber: #ff9f0a;
+  --color-amber-dim: #342208;
 }
 
 @layer base {
@@ -54,6 +68,7 @@
   html {
     background-color: var(--color-paper);
     color: var(--color-ink);
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   body {

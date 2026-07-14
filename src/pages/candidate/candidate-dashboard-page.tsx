@@ -1,17 +1,21 @@
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { fetchMyApplications, fetchMySavedJobs } from "@/api/candidate";
+import { fetchMyApplications, fetchMySavedJobs, withdrawApplication } from "@/api/candidate";
 import { fetchPublishedJobs } from "@/api/jobs";
 import { ROUTES } from "@/constants/routes";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Button } from "@/components/ui/button";
 import { formatRelativeDate, formatResumeCompletion } from "@/utils/format";
+import { toast } from "sonner";
 
 export function CandidateDashboardPage() {
   const { profile } = useCurrentUser();
   const candidateId = profile?.id ?? "";
+  const queryClient = useQueryClient();
 
   const applicationsQuery = useQuery({
     queryKey: ["my-applications", candidateId],
@@ -28,6 +32,16 @@ export function CandidateDashboardPage() {
   const recommendedQuery = useQuery({
     queryKey: ["recommended-jobs"],
     queryFn: () => fetchPublishedJobs({ sort: "newest", limit: 8 }),
+  });
+
+  const withdrawMutation = useMutation({
+    mutationFn: (id: string) => withdrawApplication(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-applications", candidateId] });
+      queryClient.invalidateQueries({ queryKey: ["my-saved-jobs-count", candidateId] });
+      toast.success("Application withdrawn");
+    },
+    onError: () => toast.error("Couldn't withdraw this application."),
   });
 
   const appliedJobIds = new Set((applicationsQuery.data ?? []).map((a) => a.job_id));
@@ -103,24 +117,40 @@ export function CandidateDashboardPage() {
         <ul>
           {applicationsQuery.data?.map((application, index) => (
             <li key={application.id} className="border-b border-grid py-4">
-              <div className="flex items-baseline gap-4">
-                <span className="index-figure text-sm text-signal">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <Link
-                    to={ROUTES.jobDetail(application.jobs?.id ?? "")}
-                    className="font-medium text-ink hover:text-signal"
-                  >
-                    {application.jobs?.title ?? "Role no longer available"}
-                  </Link>
-                  <p className="mt-1 flex flex-wrap items-center gap-x-2 font-mono text-xs uppercase tracking-wide text-ink-soft">
-                    <span>{application.jobs?.companies?.name ?? "—"}</span>
-                    <span>·</span>
-                    <StatusBadge status={application.status} />
-                    <span>· {formatRelativeDate(application.created_at)}</span>
-                  </p>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-baseline gap-4 min-w-0">
+                  <span className="index-figure text-sm text-signal">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div className="min-w-0">
+                    <Link
+                      to={ROUTES.jobDetail(application.jobs?.id ?? "")}
+                      className="font-medium text-ink hover:text-signal block truncate"
+                    >
+                      {application.jobs?.title ?? "Role no longer available"}
+                    </Link>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-2 font-mono text-xs uppercase tracking-wide text-ink-soft">
+                      <span>{application.jobs?.companies?.name ?? "—"}</span>
+                      <span>·</span>
+                      <StatusBadge status={application.status} />
+                      <span>· {formatRelativeDate(application.created_at)}</span>
+                    </p>
+                  </div>
                 </div>
+
+                {application.status === "applied" && (
+                  <ConfirmDialog
+                    trigger={
+                      <Button size="sm" variant="outline" className="h-7 border-grid text-ink-soft hover:border-signal hover:text-signal text-[11px] font-mono uppercase tracking-wide">
+                        Withdraw
+                      </Button>
+                    }
+                    title="Withdraw application?"
+                    description="This action cannot be undone. You will have to re-apply from scratch if you want to consider this role again."
+                    confirmLabel="Withdraw"
+                    onConfirm={() => withdrawMutation.mutate(application.id)}
+                  />
+                )}
               </div>
             </li>
           ))}

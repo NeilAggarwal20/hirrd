@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { formatRelativeDate } from "@/utils/format";
+import { ResumeDialog } from "@/components/shared/resume-dialog";
 import type { ApplicationStatus } from "@/types/database.types";
 
 const statusOptions: { value: ApplicationStatus; label: string }[] = [
@@ -24,6 +25,9 @@ export function RecruiterApplicantsPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewName, setPreviewName] = useState("");
 
   const jobQuery = useQuery({
     queryKey: ["recruiter-job", jobId],
@@ -57,10 +61,12 @@ export function RecruiterApplicantsPage() {
     });
   }, [applicantsQuery.data, search]);
 
-  async function openResume(path: string) {
+  async function openResume(path: string, candidateName: string) {
     try {
       const url = await getResumeSignedUrl(path);
-      window.open(url, "_blank", "noopener,noreferrer");
+      setPreviewUrl(url);
+      setPreviewName(candidateName);
+      setIsPreviewOpen(true);
     } catch {
       toast.error("Couldn't open this resume.");
     }
@@ -88,51 +94,54 @@ export function RecruiterApplicantsPage() {
       />
 
       <ul className="mt-6 border-t border-grid">
-        {filtered.map((applicant, index) => (
-          <li key={applicant.id} className="border-b border-grid py-5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-baseline gap-4">
-                <span className="index-figure text-sm text-signal">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <div>
-                  <p className="font-medium text-ink">
-                    {applicant.users?.first_name} {applicant.users?.last_name}
-                  </p>
-                  <p className="mt-1 font-mono text-xs uppercase tracking-wide text-ink-soft">
-                    {applicant.users?.email} · Applied {formatRelativeDate(applicant.created_at)}
-                  </p>
-                  {applicant.users?.headline && (
-                    <p className="mt-1 text-sm text-ink-soft">{applicant.users.headline}</p>
-                  )}
+        {filtered.map((applicant, index) => {
+          const name = `${applicant.users?.first_name ?? ""} ${applicant.users?.last_name ?? ""}`;
+          return (
+            <li key={applicant.id} className="border-b border-grid py-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-baseline gap-4">
+                  <span className="index-figure text-sm text-signal">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div>
+                    <p className="font-medium text-ink">
+                      {name}
+                    </p>
+                    <p className="mt-1 font-mono text-xs uppercase tracking-wide text-ink-soft">
+                      {applicant.users?.email} · Applied {formatRelativeDate(applicant.created_at)}
+                    </p>
+                    {applicant.users?.headline && (
+                      <p className="mt-1 text-sm text-ink-soft">{applicant.users.headline}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Button size="sm" variant="outline" onClick={() => openResume(applicant.resume_url, name)} className="cursor-pointer">
+                    View resume
+                  </Button>
+                  <Select
+                    value={applicant.status}
+                    onValueChange={(status) =>
+                      statusMutation.mutate({ id: applicant.id, status: status as ApplicationStatus })
+                    }
+                  >
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3">
-                <Button size="sm" variant="outline" onClick={() => openResume(applicant.resume_url)}>
-                  View resume
-                </Button>
-                <Select
-                  value={applicant.status}
-                  onValueChange={(status) =>
-                    statusMutation.mutate({ id: applicant.id, status: status as ApplicationStatus })
-                  }
-                >
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
 
       {!applicantsQuery.isLoading && filtered.length === 0 && (
@@ -140,6 +149,14 @@ export function RecruiterApplicantsPage() {
           {search ? `No applicants match "${search}".` : "No applicants yet."}
         </p>
       )}
+
+      {/* Embedded Resume Preview Dialog */}
+      <ResumeDialog
+        isOpen={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        resumeUrl={previewUrl}
+        candidateName={previewName}
+      />
     </div>
   );
 }

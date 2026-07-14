@@ -4,6 +4,7 @@ import { fetchCompanyById } from "@/api/companies";
 import { fetchPublishedJobs } from "@/api/jobs";
 import { ROUTES } from "@/constants/routes";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { StatCard } from "@/components/shared/stat-card";
 import { NotFoundPage } from "@/pages/not-found-page";
 import { formatEmploymentType, formatRelativeDate, formatWorkMode } from "@/utils/format";
 
@@ -31,6 +32,9 @@ export function CompanyDetailPage() {
   }
 
   const company = companyQuery.data;
+  const jobs = jobsQuery.data ?? [];
+  const categories = Array.from(new Set(jobs.map((j) => j.category)));
+  const remoteCount = jobs.filter((j) => j.work_mode === "remote").length;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-16 sm:px-10">
@@ -66,7 +70,19 @@ export function CompanyDetailPage() {
         </div>
       </div>
 
-      {company.description && <p className="mt-6 max-w-xl text-sm text-ink-soft">{company.description}</p>}
+      {company.description && <p className="mt-6 max-w-xl text-sm text-ink-soft leading-relaxed">{company.description}</p>}
+
+      {/* SaaS Statistics Grid */}
+      <div className="mt-10 grid grid-cols-2 gap-4 border-b border-grid pb-8 sm:grid-cols-3">
+        <StatCard label="Open Positions" value={jobs.length} />
+        <StatCard label="Remote Roles" value={remoteCount} />
+        <div className="border border-grid p-4 col-span-2 sm:col-span-1">
+          <span className="index-figure block text-lg font-bold text-ink truncate">
+            {categories.length > 0 ? categories.slice(0, 2).join(", ") : "—"}
+          </span>
+          <span className="font-mono text-xs uppercase tracking-wide text-ink-soft block mt-1">Core Categories</span>
+        </div>
+      </div>
 
       <p className="mt-12 mb-4 font-mono text-xs uppercase tracking-[0.2em] text-signal">
         Open roles at {company.name}
@@ -75,7 +91,7 @@ export function CompanyDetailPage() {
       {jobsQuery.isLoading && <ListSkeleton />}
 
       <ul className="border-t border-grid">
-        {jobsQuery.data?.map((job, index) => (
+        {jobs.map((job, index) => (
           <li key={job.id} className="border-b border-grid">
             <Link to={ROUTES.jobDetail(job.id)} className="group flex items-start gap-4 py-5">
               <span className="index-figure pt-0.5 text-sm text-signal">
@@ -97,7 +113,7 @@ export function CompanyDetailPage() {
         ))}
       </ul>
 
-      {!jobsQuery.isLoading && jobsQuery.data?.length === 0 && (
+      {!jobsQuery.isLoading && jobs.length === 0 && (
         <p className="border-b border-grid py-8 text-sm text-ink-soft">No open roles right now.</p>
       )}
     </div>
