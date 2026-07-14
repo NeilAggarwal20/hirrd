@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -31,9 +31,12 @@ export function RecruiterJobFormPage() {
   });
 
   const job = jobQuery.data;
-  if (job && companyId === "" && job.company_id) {
-    setCompanyId(job.company_id);
-  }
+
+  useEffect(() => {
+    if (job?.company_id) {
+      setCompanyId(job.company_id);
+    }
+  }, [job?.company_id]);
 
   const mutation = useMutation({
     mutationFn: (values: JobFormValues) => {

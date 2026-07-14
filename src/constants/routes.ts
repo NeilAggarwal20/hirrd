@@ -1,7 +1,9 @@
 export const ROUTES = {
   home: "/",
-  signIn: "/sign-in/*",
-  signUp: "/sign-up/*",
+  signIn: "/sign-in",
+  signUp: "/sign-up",
+  signInRoute: "/sign-in/*",
+  signUpRoute: "/sign-up/*",
   onboarding: "/onboarding",
   jobs: "/jobs",
   jobDetail: (id: string) => `/jobs/${id}`,

@@ -72,8 +72,8 @@ export default function App() {
           <Route path={ROUTES.jobs} element={<JobsBrowsePage />} />
           <Route path={ROUTES.jobDetail(":id")} element={<JobDetailPage />} />
           <Route path={ROUTES.companyDetail(":id")} element={<CompanyDetailPage />} />
-          <Route path={ROUTES.signIn} element={<SignInPage />} />
-          <Route path={ROUTES.signUp} element={<SignUpPage />} />
+          <Route path={ROUTES.signInRoute} element={<SignInPage />} />
+          <Route path={ROUTES.signUpRoute} element={<SignUpPage />} />
 
           <Route
             path={ROUTES.onboarding}

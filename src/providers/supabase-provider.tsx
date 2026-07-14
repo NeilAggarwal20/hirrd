@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { useAuth } from "@clerk/react";
 import { registerClerkTokenGetter } from "@/lib/supabase";
 
@@ -12,10 +12,9 @@ import { registerClerkTokenGetter } from "@/lib/supabase";
 export function SupabaseProvider({ children }: { children: ReactNode }) {
   const { getToken, isLoaded } = useAuth();
 
-  useEffect(() => {
-    if (!isLoaded) return;
+  if (isLoaded) {
     registerClerkTokenGetter(() => getToken());
-  }, [isLoaded, getToken]);
+  }
 
   return children;
 }
