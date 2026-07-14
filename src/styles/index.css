@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/*
+  ==========================================================
+  HIRRD design tokens — Swiss / International Typographic Style
+
+  Palette
+    --color-paper   #FAFAF8  cool off-white ground, not the cliché warm cream
+    --color-ink      #15161A  near-black, primary text and rules
+    --color-grid     #D8D5CB  hairline rule / grid color
+    --color-signal   #D6001C  true Swiss red — the one accent, used sparingly
+    --color-meadow   #1E7A46  status: accepted
+    --color-amber    #B4780A  status: interview / in progress
+
+  Type
+    Display : Archivo Expanded 700/800 — used only for numerals, section
+              markers, and the wordmark. Never for body copy.
+    Body/UI : IBM Plex Sans — everything a person reads or clicks.
+    Data    : IBM Plex Mono — the running index rail, job metadata,
+              salary figures, dates, ids. This is the signature: HIRRD's
+              job listings are numbered like a Swiss timetable, because
+              a list of open roles genuinely is a sequence.
+
+  Layout: sharp corners throughout (radius 0), hairline 1px rules,
+  strict 12-column grid, deliberate asymmetry in the header/hero.
+  ==========================================================
+*/
+
+@theme {
+  --color-paper: #fafaf8;
+  --color-paper-dim: #f1efe7;
+  --color-ink: #15161a;
+  --color-ink-soft: #4a4b52;
+  --color-grid: #d8d5cb;
+  --color-signal: #d6001c;
+  --color-signal-deep: #a8000f;
+  --color-meadow: #1e7a46;
+  --color-meadow-dim: #e3f0e7;
+  --color-amber: #b4780a;
+  --color-amber-dim: #f5ead4;
+
+  --font-display: "Archivo Expanded", "Archivo", sans-serif;
+  --font-sans: "IBM Plex Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  --radius-none: 0px;
+}
+
+@layer base {
+  * {
+    border-radius: 0 !important;
+  }
+
+  html {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-signal);
+    color: var(--color-paper);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  .rule {
+    border-color: var(--color-grid);
+  }
+
+  .index-figure {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
