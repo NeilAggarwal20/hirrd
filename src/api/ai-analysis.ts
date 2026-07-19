@@ -1,5 +1,5 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { supabase, getClerkTokenValue } from "@/lib/supabase";
 
 export interface ResumeReviewResult {
   resumeScore: number;
@@ -38,8 +38,10 @@ async function readFunctionErrorMessage(error: unknown, fallback: string): Promi
  * there's nothing to pass here.
  */
 export async function fetchResumeReview(): Promise<ResumeReviewResult> {
+  const token = await getClerkTokenValue();
   const { data, error } = await supabase.functions.invoke<ResumeReviewResult>("resume-review", {
     body: {},
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (error) throw new Error(await readFunctionErrorMessage(error, "Couldn't analyze your resume."));
   if (!data) throw new Error("Couldn't analyze your resume.");
@@ -48,10 +50,13 @@ export async function fetchResumeReview(): Promise<ResumeReviewResult> {
 
 /** Runs (or returns the cached) AI match of the caller's resume against one job. */
 export async function fetchJobMatch(jobId: string): Promise<JobMatchResult> {
+  const token = await getClerkTokenValue();
   const { data, error } = await supabase.functions.invoke<JobMatchResult>("resume-job-match", {
     body: { jobId },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (error) throw new Error(await readFunctionErrorMessage(error, "Couldn't analyze your resume for this job."));
   if (!data) throw new Error("Couldn't analyze your resume for this job.");
   return data;
 }
+

@@ -34,6 +34,7 @@ export function RecruiterJobFormPage() {
 
   useEffect(() => {
     if (job?.company_id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCompanyId(job.company_id);
     }
   }, [job?.company_id]);

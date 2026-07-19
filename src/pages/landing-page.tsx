@@ -4,12 +4,28 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchPublishedJobs } from "@/api/jobs";
 import { ROUTES } from "@/constants/routes";
 import { formatEmploymentType, formatRelativeDate, formatWorkMode } from "@/utils/format";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export function LandingPage() {
   const { data: jobs, isLoading } = useQuery({
     queryKey: ["jobs", "landing-index"],
     queryFn: () => fetchPublishedJobs({ limit: 6 }),
   });
+
+  const { isSignedIn, profile } = useCurrentUser();
+
+  let ctaTo: string = ROUTES.signUp;
+  let ctaText = "Sign up to review resume";
+
+  if (isSignedIn) {
+    if (profile?.role === "candidate") {
+      ctaTo = ROUTES.candidateProfile;
+      ctaText = "Go to Profile to Review Resume";
+    } else {
+      ctaTo = ROUTES.recruiterDashboard;
+      ctaText = "Go to Dashboard";
+    }
+  }
 
   return (
     <div className="mx-auto max-w-[1400px] px-6 sm:px-10">
@@ -111,6 +127,160 @@ export function LandingPage() {
               View all roles →
             </Link>
           )}
+        </div>
+      </section>
+
+      {/* AI Resume Review Promo Section */}
+      <section className="border-t border-grid py-16 md:py-24">
+        <div className="grid grid-cols-1 gap-12 md:grid-cols-12 md:gap-8 items-stretch">
+          {/* Pitch Column */}
+          <div className="md:col-span-7 flex flex-col justify-between">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">
+                AI Optimization — Edition 01
+              </p>
+              <h2 className="mt-4 font-display text-4xl font-extrabold uppercase leading-[0.95] tracking-tight text-ink sm:text-5xl md:text-6xl">
+                INTELLIGENT
+                <br />
+                RESUME REVIEW.
+              </h2>
+              <p className="mt-6 max-w-xl text-base text-ink-soft leading-relaxed">
+                HIRRD incorporates Gemini AI models to analyze candidate resumes against modern recruiter benchmarks. Compare your profile with real industry standards, find critical skill gaps, optimize ATS compatibility, and secure matches against active roles automatically.
+              </p>
+              
+              <ul className="mt-8 space-y-3 font-mono text-xs uppercase tracking-wider text-ink">
+                <li className="flex items-center gap-3">
+                  <span className="h-1.5 w-1.5 bg-signal" />
+                  <span>Interactive ATS Compatibility Analysis</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="h-1.5 w-1.5 bg-signal" />
+                  <span>Real-time Skill Gap Mapping</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="h-1.5 w-1.5 bg-signal" />
+                  <span>Actionable suggestions & grammar checks</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="h-1.5 w-1.5 bg-signal" />
+                  <span>Instant Match Score Against Published Roles</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="mt-10 flex flex-wrap items-center gap-4">
+              <Link
+                to={ctaTo}
+                className="border border-ink bg-ink px-6 py-3 font-mono text-sm uppercase tracking-wide text-paper transition-colors hover:bg-signal hover:border-signal"
+              >
+                {ctaText} →
+              </Link>
+              {!isSignedIn && (
+                <Link
+                  to={ROUTES.signIn}
+                  className="font-mono text-xs uppercase tracking-wide text-ink-soft hover:text-signal"
+                >
+                  Or sign in to your account
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Graphic/Mockup Column */}
+          <div className="md:col-span-5 flex flex-col border border-grid bg-paper-dim p-6 relative overflow-hidden">
+            <div className="flex items-center justify-between border-b border-grid pb-3 mb-6">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+                Gemini Analysis Report // IND-002
+              </span>
+              <span className="inline-block px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide bg-signal/10 text-signal border border-signal/25">
+                Live Preview
+              </span>
+            </div>
+
+            <div className="space-y-6 flex-1">
+              {/* Score section */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border border-grid bg-paper p-3">
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block">
+                    Resume Score
+                  </span>
+                  <span className="font-display text-3xl font-extrabold text-ink mt-1 block">
+                    87<span className="text-sm font-sans font-normal text-ink-soft">/100</span>
+                  </span>
+                  <div className="mt-2 h-1 bg-paper-dim relative">
+                    <div className="absolute top-0 left-0 h-1 bg-signal" style={{ width: "87%" }} />
+                  </div>
+                </div>
+                <div className="border border-grid bg-paper p-3">
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block">
+                    ATS Score
+                  </span>
+                  <span className="font-display text-3xl font-extrabold text-ink mt-1 block">
+                    92<span className="text-sm font-sans font-normal text-ink-soft">%</span>
+                  </span>
+                  <div className="mt-2 h-1 bg-paper-dim relative">
+                    <div className="absolute top-0 left-0 h-1 bg-signal" style={{ width: "92%" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Strengths section */}
+              <div>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block mb-1.5">
+                  Identified Strengths
+                </span>
+                <ul className="space-y-1 font-mono text-[11px] text-ink">
+                  <li className="flex gap-2 items-start">
+                    <span className="text-meadow font-bold">+</span>
+                    <span>Excellent deployment of quantifiable results in previous roles</span>
+                  </li>
+                  <li className="flex gap-2 items-start">
+                    <span className="text-meadow font-bold">+</span>
+                    <span>Strong alignment in frontend technology suite (React, Tailwind)</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Skill gap / Missing Skills */}
+              <div>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block mb-1.5">
+                  Missing Stack Skills
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {["Docker", "AWS ECS", "CI/CD Orchestration"].map((skill) => (
+                    <span
+                      key={skill}
+                      className="px-2 py-0.5 font-mono text-[10px] bg-paper border border-grid text-ink-soft uppercase tracking-wide"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Suggestions */}
+              <div>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block mb-1.5">
+                  Optimization Guidelines
+                </span>
+                <ul className="space-y-1 font-mono text-[11px] text-ink">
+                  <li className="flex gap-2 items-start">
+                    <span className="text-signal font-bold">—</span>
+                    <span>Add structural engineering detail regarding Postgres schemas</span>
+                  </li>
+                  <li className="flex gap-2 items-start">
+                    <span className="text-signal font-bold">—</span>
+                    <span>Quantify DevOps scope of your engineering workload</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="mt-6 border-t border-grid pt-3 flex items-center justify-between text-ink-soft">
+              <span className="font-mono text-[9px] uppercase">Review verified</span>
+              <span className="font-mono text-[9px] uppercase">Confidence 96%</span>
+            </div>
+          </div>
         </div>
       </section>
 

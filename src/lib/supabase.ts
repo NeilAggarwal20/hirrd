@@ -26,9 +26,14 @@ export function registerClerkTokenGetter(getter: () => Promise<string | null>) {
   getClerkToken = getter;
 }
 
+export async function getClerkTokenValue(): Promise<string | null> {
+  if (!getClerkToken) return null;
+  return getClerkToken();
+}
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   async accessToken() {
-    if (!getClerkToken) return null;
-    return getClerkToken();
+    return getClerkTokenValue();
   },
 });
+
