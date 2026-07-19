@@ -1,45 +1,25 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  body: string;
-  time: string;
-  read: boolean;
-}
+import {
+  clearNotifications,
+  getNotifications,
+  markAllNotificationsRead,
+  seedWelcomeNotificationIfEmpty,
+  subscribeToNotifications,
+  type NotificationItem,
+} from "@/lib/notifications";
+import { formatRelativeDate } from "@/utils/format";
 
 export function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
+    seedWelcomeNotificationIfEmpty();
+    return getNotifications();
+  });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("notifications");
-    if (saved) {
-      setNotifications(JSON.parse(saved));
-    } else {
-      const initial: NotificationItem[] = [
-        {
-          id: "1",
-          title: "Welcome to HIRRD",
-          body: "Your profile has been initialized successfully. Complete onboarding to browse or post roles.",
-          time: "Just now",
-          read: false,
-        },
-        {
-          id: "2",
-          title: "Production readiness check",
-          body: "All systems operational. Database schemas, RLS policies, and token integrations are online.",
-          time: "10m ago",
-          read: false,
-        },
-      ];
-      setNotifications(initial);
-      localStorage.setItem("notifications", JSON.stringify(initial));
-    }
-  }, []);
+  useEffect(() => subscribeToNotifications(() => setNotifications(getNotifications())), []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -53,15 +33,16 @@ export function NotificationCenter() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  function markAllRead() {
-    const updated = notifications.map((n) => ({ ...n, read: true }));
-    setNotifications(updated);
-    localStorage.setItem("notifications", JSON.stringify(updated));
+  function togglePanel() {
+    const next = !isOpen;
+    setIsOpen(next);
+    if (next && unreadCount > 0) {
+      setNotifications(markAllNotificationsRead());
+    }
   }
 
-  function clearAll() {
-    setNotifications([]);
-    localStorage.setItem("notifications", JSON.stringify([]));
+  function handleClear() {
+    clearNotifications();
   }
 
   return (
@@ -69,14 +50,10 @@ export function NotificationCenter() {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => {
-          setIsOpen(!isOpen);
-          if (!isOpen && unreadCount > 0) {
-            markAllRead();
-          }
-        }}
+        onClick={togglePanel}
         title="Notifications"
         aria-label="Toggle notifications"
+        aria-expanded={isOpen}
         className="relative h-9 w-9 p-0 border-grid hover:border-ink hover:text-ink text-ink-soft transition-colors"
       >
         <Bell className="h-4 w-4" />
@@ -94,7 +71,7 @@ export function NotificationCenter() {
             {notifications.length > 0 && (
               <button
                 type="button"
-                onClick={clearAll}
+                onClick={handleClear}
                 className="font-mono text-[10px] uppercase text-ink-soft hover:text-signal transition-colors cursor-pointer"
               >
                 Clear ×
@@ -102,12 +79,14 @@ export function NotificationCenter() {
             )}
           </div>
 
-          <div className="mt-2 max-h-60 overflow-y-auto divide-y divide-grid">
+          <div className="mt-2 max-h-72 overflow-y-auto divide-y divide-grid">
             {notifications.map((n) => (
               <div key={n.id} className="py-3 first:pt-1 last:pb-1">
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-medium text-xs text-ink">{n.title}</span>
-                  <span className="font-mono text-[9px] text-ink-soft uppercase shrink-0">{n.time}</span>
+                  <span className="font-mono text-[9px] text-ink-soft uppercase shrink-0">
+                    {formatRelativeDate(n.createdAt)}
+                  </span>
                 </div>
                 <p className="mt-1 text-xs text-ink-soft leading-normal">{n.body}</p>
               </div>

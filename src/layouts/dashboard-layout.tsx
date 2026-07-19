@@ -5,6 +5,8 @@ export interface DashboardNavItem {
   label: string;
   to: string;
   end?: boolean;
+  /** When set, rendered as `data-tour` on the link so a ProductTour step can target it. */
+  tourId?: string;
 }
 
 interface DashboardLayoutProps {
@@ -31,6 +33,7 @@ export function DashboardLayout({ sectionLabel, navItems }: DashboardLayoutProps
               key={item.to}
               to={item.to}
               end={item.end}
+              data-tour={item.tourId}
               className={({ isActive }) =>
                 cn(
                   "group flex items-baseline gap-3 border-l-2 border-transparent py-2 pl-3 font-sans text-sm text-ink-soft transition-colors hover:border-grid hover:text-ink",

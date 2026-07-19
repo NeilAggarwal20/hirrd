@@ -11,6 +11,8 @@ import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { formatRelativeDate } from "@/utils/format";
+import { ProductTour } from "@/components/shared/product-tour";
+import { recruiterTourSteps } from "@/config/product-tours";
 
 export function RecruiterDashboardPage() {
   const { profile } = useCurrentUser();
@@ -61,8 +63,16 @@ export function RecruiterDashboardPage() {
 
   return (
     <div>
+      <ProductTour
+        steps={recruiterTourSteps}
+        storageKey={`hirrd:tour:recruiter:${profile?.id ?? "anon"}`}
+        enabled={!!profile?.id && !!profile.onboarding_completed}
+      />
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">Recruiter</p>
-      <h1 className="mt-2 font-display text-3xl font-extrabold uppercase tracking-tight text-ink">
+      <h1
+        data-tour="recruiter-dashboard-welcome"
+        className="mt-2 font-display text-3xl font-extrabold uppercase tracking-tight text-ink"
+      >
         Dashboard
       </h1>
 
@@ -82,7 +92,7 @@ export function RecruiterDashboardPage() {
 
       {hasCompany && (
         <>
-          <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div data-tour="recruiter-stats" className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatCard label="Total jobs" value={jobs.length} />
             <StatCard label="Published" value={jobs.filter((j) => j.status === "published").length} />
             <StatCard label="Draft" value={jobs.filter((j) => j.status === "draft").length} />
@@ -133,7 +143,7 @@ export function RecruiterDashboardPage() {
           )}
 
           <div className="mt-8 flex flex-wrap gap-3 border-b border-grid pb-8">
-            <Button asChild size="sm">
+            <Button asChild size="sm" data-tour="recruiter-new-role">
               <Link to={ROUTES.recruiterJobNew}>+ New role</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
@@ -144,7 +154,7 @@ export function RecruiterDashboardPage() {
             </Button>
           </div>
 
-          <div className="mt-8">
+          <div data-tour="recruiter-recent-applications" className="mt-8">
             <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
               Recent applications
             </p>

@@ -11,6 +11,8 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { formatRelativeDate, formatResumeCompletion } from "@/utils/format";
 import { toast } from "sonner";
+import { ProductTour } from "@/components/shared/product-tour";
+import { candidateTourSteps } from "@/config/product-tours";
 
 export function CandidateDashboardPage() {
   const { profile } = useCurrentUser();
@@ -60,15 +62,23 @@ export function CandidateDashboardPage() {
 
   return (
     <div>
+      <ProductTour
+        steps={candidateTourSteps}
+        storageKey={`hirrd:tour:candidate:${profile?.id ?? "anon"}`}
+        enabled={!!profile?.id && !!profile.onboarding_completed}
+      />
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">Candidate</p>
-      <h1 className="mt-2 font-display text-3xl font-extrabold uppercase tracking-tight text-ink">
+      <h1
+        data-tour="candidate-dashboard-welcome"
+        className="mt-2 font-display text-3xl font-extrabold uppercase tracking-tight text-ink"
+      >
         Dashboard
       </h1>
 
       <div className="mt-8 grid grid-cols-2 gap-4 border-b border-grid pb-8 sm:grid-cols-4">
         <StatCard label="Applications" value={applicationsQuery.data?.length ?? 0} />
         <StatCard label="Saved roles" value={savedQuery.data?.length ?? 0} />
-        <div className="border border-grid p-4">
+        <div data-tour="candidate-resume-card" className="border border-grid p-4">
           <span className="index-figure block text-3xl text-ink">{completion}%</span>
           <span className="font-mono text-xs uppercase tracking-wide text-ink-soft">Resume complete</span>
           {completion < 100 && (
@@ -83,7 +93,7 @@ export function CandidateDashboardPage() {
       </div>
 
       {recommended.length > 0 && (
-        <div className="mt-8">
+        <div data-tour="candidate-recommended" className="mt-8">
           <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
             Recommended for you
           </p>

@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchJobFacets, fetchPublishedJobs, type JobSort } from "@/api/jobs";
+import { fetchJobFacets, fetchJobSearchSuggestions, fetchPublishedJobs, type JobSort, type JobSuggestion } from "@/api/jobs";
 import { ROUTES } from "@/constants/routes";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
+import { SearchSuggestions } from "@/components/shared/search-suggestions";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { formatEmploymentType, formatRelativeDate, formatSalaryRange, formatWorkMode } from "@/utils/format";
 import type { ExperienceLevel, WorkMode } from "@/types/database.types";
 
@@ -38,8 +40,40 @@ export function JobsBrowsePage() {
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | "">("");
   const [salaryMin, setSalaryMin] = useState("");
   const [sort, setSort] = useState<JobSort>("newest");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const facetsQuery = useQuery({ queryKey: ["job-facets"], queryFn: fetchJobFacets });
+
+  const debouncedSearch = useDebouncedValue(search, 250);
+  const suggestionsQuery = useQuery({
+    queryKey: ["job-search-suggestions", debouncedSearch],
+    queryFn: () => fetchJobSearchSuggestions(debouncedSearch),
+    enabled: debouncedSearch.trim().length >= 2,
+    staleTime: 60_000,
+  });
+  const showSuggestions =
+    isSearchFocused && debouncedSearch.trim().length >= 2 && (suggestionsQuery.data?.length ?? 0) > 0;
+
+  function handleSuggestionSelect(suggestion: JobSuggestion) {
+    if (suggestion.type === "location") {
+      setLocation(suggestion.value);
+      setSearch("");
+    } else if (suggestion.type === "company") {
+      const match = facetsQuery.data?.companies.find(
+        (c) => c.name.toLowerCase() === suggestion.value.toLowerCase()
+      );
+      if (match) {
+        setCompanyId(match.id);
+        setSearch("");
+      } else {
+        setSearch(suggestion.value);
+      }
+    } else {
+      setSearch(suggestion.value);
+    }
+    setIsSearchFocused(false);
+  }
 
   const jobsQuery = useQuery({
     queryKey: ["jobs", "browse", search, location, workMode, category, companyId, experienceLevel, salaryMin, sort],
@@ -80,12 +114,24 @@ export function JobsBrowsePage() {
       </h1>
 
       <div className="mt-8 grid grid-cols-1 gap-4 border-b border-grid pb-8 sm:grid-cols-2 lg:grid-cols-4">
-        <Input
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search by title —"
-        />
+        <div className="relative" ref={searchContainerRef}>
+          <Input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
+            placeholder="Search titles, skills, companies —"
+            aria-autocomplete="list"
+            aria-expanded={showSuggestions}
+          />
+          {showSuggestions && (
+            <SearchSuggestions
+              suggestions={suggestionsQuery.data ?? []}
+              onSelect={handleSuggestionSelect}
+            />
+          )}
+        </div>
         <Input
           value={location}
           onChange={(event) => setLocation(event.target.value)}

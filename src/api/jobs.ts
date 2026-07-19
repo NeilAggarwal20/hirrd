@@ -107,6 +107,68 @@ export async function fetchJobFacets(): Promise<{
   return { categories, companies };
 }
 
+export type JobSuggestionType = "title" | "company" | "skill" | "location";
+
+export interface JobSuggestion {
+  type: JobSuggestionType;
+  value: string;
+}
+
+/**
+ * Search-as-you-type suggestions across job titles, companies,
+ * skills, and locations. There's no full-text index for this yet, so
+ * it works off a capped, published-only batch and matches client
+ * side — plenty fast at this app's scale, and easy to swap for a
+ * proper `tsvector`/trigram index later without touching the caller.
+ */
+export async function fetchJobSearchSuggestions(query: string): Promise<JobSuggestion[]> {
+  const needle = query.trim().toLowerCase();
+  if (needle.length < 2) return [];
+
+  const { data, error } = await supabase
+    .from("job_listings")
+    .select("title, company_name, location, skills")
+    .eq("status", "published")
+    .limit(200);
+
+  if (error) throw error;
+
+  const titles = new Map<string, string>();
+  const companies = new Map<string, string>();
+  const locations = new Map<string, string>();
+  const skills = new Map<string, string>();
+
+  for (const row of data) {
+    if (row.title.toLowerCase().includes(needle)) titles.set(row.title.toLowerCase(), row.title);
+    if (row.company_name.toLowerCase().includes(needle)) {
+      companies.set(row.company_name.toLowerCase(), row.company_name);
+    }
+    if (row.location && row.location.toLowerCase().includes(needle)) {
+      locations.set(row.location.toLowerCase(), row.location);
+    }
+    for (const skill of row.skills) {
+      if (skill.toLowerCase().includes(needle)) skills.set(skill.toLowerCase(), skill);
+    }
+  }
+
+  const suggestions: JobSuggestion[] = [
+    ...Array.from(titles.values())
+      .slice(0, 5)
+      .map((value): JobSuggestion => ({ type: "title", value })),
+    ...Array.from(companies.values())
+      .slice(0, 4)
+      .map((value): JobSuggestion => ({ type: "company", value })),
+    ...Array.from(skills.values())
+      .slice(0, 4)
+      .map((value): JobSuggestion => ({ type: "skill", value })),
+    ...Array.from(locations.values())
+      .slice(0, 3)
+      .map((value): JobSuggestion => ({ type: "location", value })),
+  ];
+
+  return suggestions.slice(0, 10);
+}
+
 /**
  * Public applicant count. Backed by a SECURITY DEFINER function so it
  * works for anonymous visitors and candidates without exposing any

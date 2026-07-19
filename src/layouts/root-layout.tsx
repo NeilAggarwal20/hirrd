@@ -49,16 +49,18 @@ export function RootLayout() {
 
           <nav className="hidden items-center gap-8 font-mono text-sm uppercase tracking-wide sm:flex">
             {navLinks.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-1.5 border-b-2 border-transparent pb-1 text-ink-soft transition-colors hover:text-ink",
-                    isActive && "border-signal text-ink"
-                  )
-                }
-              >
+            <NavLink
+            key={link.to}
+            to={link.to}
+            end={link.to === ROUTES.candidateDashboard}
+            data-tour={link.to === ROUTES.jobs ? "nav-browse-jobs" : undefined}
+            className={({ isActive }) =>
+                cn(
+                "flex items-center gap-1.5 border-b-2 border-transparent pb-1 text-ink-soft transition-colors hover:text-ink",
+                isActive && "border-signal text-ink"
+                )
+            }
+            >
                 {link.label}
                 {!!link.badge && (
                   <span className="flex h-4 min-w-4 items-center justify-center bg-signal px-1 font-mono text-[10px] text-paper">
@@ -116,6 +118,7 @@ export function RootLayout() {
                 <NavLink
                   key={link.to}
                   to={link.to}
+                  end={link.to === ROUTES.candidateDashboard}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={({ isActive }) =>
                     cn(

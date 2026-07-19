@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -6,6 +7,7 @@ import { useUser } from "@clerk/react";
 import { useCurrentUser, CURRENT_USER_QUERY_KEY } from "@/hooks/use-current-user";
 import { updateUserProfile } from "@/api/users";
 import { recruiterProfileFormSchema, type RecruiterProfileFormValues } from "@/lib/validation";
+import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +16,7 @@ export function RecruiterProfilePage() {
   const { profile } = useCurrentUser();
   const { user } = useUser();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const {
     register,
@@ -46,12 +49,29 @@ export function RecruiterProfilePage() {
     onError: () => toast.error("Couldn't save your profile."),
   });
 
+  function handleRestartTour() {
+    if (!profile) return;
+    localStorage.removeItem(`hirrd:tour:recruiter:${profile.id}`);
+    navigate(ROUTES.recruiterDashboard);
+    toast.success("Tour reset — check your dashboard.");
+  }
+
   return (
     <div>
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">Recruiter</p>
       <h1 className="mt-2 font-display text-3xl font-extrabold uppercase tracking-tight text-ink">
         Profile
       </h1>
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleRestartTour}
+        className="mt-4"
+      >
+        Restart product tour
+      </Button>
 
       <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="mt-8 max-w-lg space-y-6">
         <div className="flex items-center gap-4">

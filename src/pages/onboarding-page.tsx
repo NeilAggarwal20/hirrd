@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useCurrentUser, CURRENT_USER_QUERY_KEY } from "@/hooks/use-current-user";
 import { completeOnboarding } from "@/api/users";
 import { ROUTES } from "@/constants/routes";
 import { cn } from "@/lib/utils";
+import { resolvePostOnboardingPath } from "@/lib/auth-redirect";
 import type { UserRole } from "@/types/database.types";
 
 const roleOptions: { role: UserRole; label: string; body: string }[] = [
@@ -26,6 +27,8 @@ export function OnboardingPage() {
   const [selected, setSelected] = useState<UserRole | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
 
   const mutation = useMutation({
     mutationFn: (role: UserRole) => {
@@ -34,9 +37,8 @@ export function OnboardingPage() {
     },
     onSuccess: (updated) => {
       queryClient.setQueryData([...CURRENT_USER_QUERY_KEY, updated.id], updated);
-      navigate(updated.role === "recruiter" ? ROUTES.recruiterDashboard : ROUTES.candidateDashboard, {
-        replace: true,
-      });
+      const dashboard = updated.role === "recruiter" ? ROUTES.recruiterDashboard : ROUTES.candidateDashboard;
+      navigate(resolvePostOnboardingPath(redirectParam, dashboard), { replace: true });
     },
     onError: () => {
       toast.error("Couldn't save your role. Try again.");
@@ -44,12 +46,8 @@ export function OnboardingPage() {
   });
 
   if (!isLoading && profile?.onboarding_completed) {
-    return (
-      <Navigate
-        to={profile.role === "recruiter" ? ROUTES.recruiterDashboard : ROUTES.candidateDashboard}
-        replace
-      />
-    );
+    const dashboard = profile.role === "recruiter" ? ROUTES.recruiterDashboard : ROUTES.candidateDashboard;
+    return <Navigate to={resolvePostOnboardingPath(redirectParam, dashboard)} replace />;
   }
 
   return (

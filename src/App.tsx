@@ -51,16 +51,16 @@ const CandidateProfilePage = lazy(() =>
 
 const recruiterNavItems = [
   { label: "Overview", to: ROUTES.recruiterDashboard, end: true },
-  { label: "Company", to: ROUTES.recruiterCompany },
-  { label: "Jobs", to: ROUTES.recruiterJobs },
-  { label: "Profile", to: ROUTES.recruiterProfile },
+  { label: "Company", to: ROUTES.recruiterCompany, tourId: "recruiter-nav-company" },
+  { label: "Jobs", to: ROUTES.recruiterJobs, tourId: "recruiter-nav-jobs" },
+  { label: "Profile", to: ROUTES.recruiterProfile, tourId: "recruiter-nav-profile" },
 ];
 
 const candidateNavItems = [
   { label: "Overview", to: ROUTES.candidateDashboard, end: true },
   { label: "Applications", to: ROUTES.candidateApplications },
-  { label: "Saved roles", to: ROUTES.candidateSaved },
-  { label: "Profile", to: ROUTES.candidateProfile },
+  { label: "Saved roles", to: ROUTES.candidateSaved, tourId: "candidate-nav-saved" },
+  { label: "Profile", to: ROUTES.candidateProfile, tourId: "candidate-nav-profile" },
 ];
 
 export default function App() {
@@ -69,9 +69,30 @@ export default function App() {
       <Routes>
         <Route element={<RootLayout />}>
           <Route path={ROUTES.home} element={<LandingPage />} />
-          <Route path={ROUTES.jobs} element={<JobsBrowsePage />} />
-          <Route path={ROUTES.jobDetail(":id")} element={<JobDetailPage />} />
-          <Route path={ROUTES.companyDetail(":id")} element={<CompanyDetailPage />} />
+          <Route
+            path={ROUTES.jobs}
+            element={
+              <ProtectedRoute>
+                <JobsBrowsePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={ROUTES.jobDetail(":id")}
+            element={
+              <ProtectedRoute>
+                <JobDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={ROUTES.companyDetail(":id")}
+            element={
+              <ProtectedRoute>
+                <CompanyDetailPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path={ROUTES.signInRoute} element={<SignInPage />} />
           <Route path={ROUTES.signUpRoute} element={<SignUpPage />} />
 

@@ -1,14 +1,18 @@
+import { useLocation } from "react-router-dom";
 import { SignUp } from "@clerk/react";
-import { ROUTES } from "@/constants/routes";
+import { buildPostAuthRedirect, getIntendedPath } from "@/lib/auth-redirect";
 
 export function SignUpPage() {
+  const location = useLocation();
+  const redirectUrl = buildPostAuthRedirect(getIntendedPath(location.state));
+
   return (
     <div className="mx-auto flex max-w-[1400px] justify-center px-6 py-16 sm:px-10">
       <SignUp
         routing="path"
         path="/sign-up"
         signInUrl="/sign-in"
-        forceRedirectUrl={ROUTES.onboarding}
+        forceRedirectUrl={redirectUrl}
         appearance={{
           elements: {
             rootBox: "w-full max-w-md",

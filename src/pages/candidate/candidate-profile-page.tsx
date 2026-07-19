@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +10,7 @@ import { useCurrentUser, CURRENT_USER_QUERY_KEY } from "@/hooks/use-current-user
 import { updateUserProfile } from "@/api/users";
 import { deleteResume, getResumeSignedUrl, uploadResume } from "@/api/storage";
 import { parseCommaList, profileFormSchema, type ProfileFormValues } from "@/lib/validation";
+import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +22,7 @@ export function CandidateProfilePage() {
   const { profile } = useCurrentUser();
   const { user } = useUser();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [isOpeningResume, setIsOpeningResume] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -111,6 +114,13 @@ export function CandidateProfilePage() {
       })
     : 0;
 
+  function handleRestartTour() {
+    if (!profile) return;
+    localStorage.removeItem(`hirrd:tour:candidate:${profile.id}`);
+    navigate(ROUTES.candidateDashboard);
+    toast.success("Tour reset — check your dashboard.");
+  }
+
   return (
     <div>
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">Candidate</p>
@@ -125,6 +135,9 @@ export function CandidateProfilePage() {
         <span className="font-mono text-xs uppercase tracking-wide text-ink-soft">
           {completion}% complete
         </span>
+        <Button type="button" variant="outline" size="sm" onClick={handleRestartTour} className="ml-auto">
+          Restart product tour
+        </Button>
       </div>
 
       <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="mt-8 max-w-xl space-y-8">

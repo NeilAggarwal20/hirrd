@@ -4,11 +4,12 @@ import { Show } from "@clerk/react";
 import { Share2, Link as LinkIcon, Users } from "lucide-react";
 import { toast } from "sonner";
 import { fetchJobApplicantCount, fetchJobById, fetchRelatedJobs } from "@/api/jobs";
-import { applyToJob, hasAppliedToJob, isJobSavedByCandidate, saveJob, unsaveJob } from "@/api/job-actions";
+import {applyToJob,hasAppliedToJob,isJobSavedByCandidate,saveJob,unsaveJob,} from "@/api/job-actions";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/shared/chip";
+import { pushNotification } from "@/lib/notifications";
 import {
   formatEmploymentType,
   formatExperienceLevel,
@@ -62,9 +63,17 @@ export function JobDetailPage() {
   const saveToggle = useMutation({
     mutationFn: () => (savedQuery.data ? unsaveJob(jobId, candidateId) : saveJob(jobId, candidateId)),
     onSuccess: () => {
+      const wasSaved = savedQuery.data;
       queryClient.invalidateQueries({ queryKey: ["job-saved", jobId, candidateId] });
       queryClient.invalidateQueries({ queryKey: ["my-saved-jobs-details", candidateId] });
-      toast.success(savedQuery.data ? "Removed from saved roles" : "Saved");
+      toast.success(wasSaved ? "Removed from saved roles" : "Saved");
+      if (!wasSaved && job) {
+        pushNotification({
+          type: "job_saved",
+          title: "Job saved",
+          body: `${job.title} at ${job.company_name} was added to your saved roles.`,
+        });
+      }
     },
     onError: () => toast.error("Couldn't update saved roles."),
   });
@@ -81,6 +90,16 @@ export function JobDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["my-applications", candidateId] });
       queryClient.invalidateQueries({ queryKey: ["job-applicant-count", jobId] });
       toast.success("Application submitted");
+      if (job) {
+        pushNotification({
+          type: "application_submitted",
+          title: "Application submitted",
+          body: `Your application to ${job.title} at ${job.company_name} was submitted successfully.`,
+        });
+      }
+      // Best-effort — a failed confirmation email should never block
+      // or roll back an otherwise-successful application.
+    //   notifyApplicationSubmitted({ jobId, candidateId }).catch(() => undefined);
     },
     onError: (error: Error) => {
       if (error.message === "NO_RESUME") {
