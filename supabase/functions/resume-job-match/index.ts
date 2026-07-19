@@ -88,7 +88,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const candidateId = getCallerId(req);
+    const candidateId = await getCallerId(req);
     const { jobId } = (await req.json()) as { jobId?: string };
     if (!jobId) {
       return new Response(JSON.stringify({ error: "jobId is required" }), {

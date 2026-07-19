@@ -1,0 +1,5 @@
+[functions.resume-review]
+verify_jwt = false
+
+[functions.resume-job-match]
+verify_jwt = false

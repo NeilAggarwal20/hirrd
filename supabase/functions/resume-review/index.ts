@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const candidateId = getCallerId(req);
+    const candidateId = await getCallerId(req);
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const { data: user, error: userError } = await supabaseAdmin

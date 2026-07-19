@@ -1,24 +1,43 @@
-/**
- * Supabase's platform already verifies the incoming JWT's signature
- * before this function runs (Clerk is registered as this project's
- * third-party auth provider). Decoding it here just reads the `sub`
- * claim — it does not re-verify the signature. Never accept a
- * candidate/user id from the request body instead of this: that
- * would let one candidate request analysis using another's identity.
- */
-export function getCallerId(req: Request): string {
+import { createRemoteJWKSet, jwtVerify } from "npm:jose@5";
+
+export async function getCallerId(req: Request): Promise<string> {
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = authHeader.replace(/^Bearer\s+/i, "");
-  const payloadSegment = token.split(".")[1];
-  if (!payloadSegment) {
-    throw new Error("Missing or malformed bearer token");
+  if (!token) {
+    throw new Error("Missing bearer token");
   }
 
-  const payload = JSON.parse(base64UrlDecode(payloadSegment)) as { sub?: string };
-  if (!payload.sub) {
+  const segments = token.split(".");
+  if (segments.length !== 3) {
+    throw new Error("Malformed bearer token");
+  }
+
+  const payloadSegment = segments[1];
+  const payload = JSON.parse(base64UrlDecode(payloadSegment)) as { sub?: string; iss?: string };
+  if (!payload.iss) {
+    throw new Error("Token is missing an iss claim");
+  }
+
+  const issUrl = new URL(payload.iss);
+  const hostname = issUrl.hostname;
+  const isValidClerkDomain = hostname.endsWith(".clerk.accounts.dev") ||
+                             (Deno.env.get("CLERK_JWT_ISSUER") && payload.iss === Deno.env.get("CLERK_JWT_ISSUER"));
+
+  if (!isValidClerkDomain) {
+    throw new Error(`Unauthorized: Issuer ${payload.iss} is not a valid Clerk domain`);
+  }
+
+  const jwksUrl = new URL("/.well-known/jwks.json", payload.iss);
+  const JWKS = createRemoteJWKSet(jwksUrl);
+
+  const { payload: verifiedPayload } = await jwtVerify(token, JWKS, {
+    issuer: payload.iss,
+  });
+
+  if (!verifiedPayload.sub) {
     throw new Error("Token is missing a sub claim");
   }
-  return payload.sub;
+  return verifiedPayload.sub;
 }
 
 function base64UrlDecode(segment: string): string {
@@ -26,3 +45,4 @@ function base64UrlDecode(segment: string): string {
   const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
   return atob(padded);
 }
+
