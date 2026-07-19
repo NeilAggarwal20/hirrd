@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { formatResumeCompletion } from "@/utils/format";
 import { ResumeDialog } from "@/components/shared/resume-dialog";
+import { ResumeReviewDialog } from "@/components/shared/resume-review-dialog";
 
 export function CandidateProfilePage() {
   const { profile } = useCurrentUser();
@@ -27,6 +28,7 @@ export function CandidateProfilePage() {
   const [isOpeningResume, setIsOpeningResume] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -298,6 +300,11 @@ export function CandidateProfilePage() {
             <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
               {profile?.resume_url ? "Replace" : "Upload"}
             </Button>
+            {profile?.resume_url && !resumeFile && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsReviewOpen(true)}>
+                AI Resume Review
+              </Button>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -321,6 +328,10 @@ export function CandidateProfilePage() {
           resumeUrl={previewUrl}
           candidateName={`${profile.first_name ?? ""} ${profile.last_name ?? ""}`}
         />
+      )}
+
+      {profile?.resume_url && profile?.id && (
+        <ResumeReviewDialog isOpen={isReviewOpen} onOpenChange={setIsReviewOpen} candidateId={profile.id} />
       )}
     </div>
   );

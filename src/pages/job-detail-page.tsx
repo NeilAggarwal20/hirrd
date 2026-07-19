@@ -1,14 +1,16 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Show } from "@clerk/react";
 import { Share2, Link as LinkIcon, Users } from "lucide-react";
 import { toast } from "sonner";
 import { fetchJobApplicantCount, fetchJobById, fetchRelatedJobs } from "@/api/jobs";
-import {applyToJob,hasAppliedToJob,isJobSavedByCandidate,saveJob,unsaveJob,} from "@/api/job-actions";
+import { applyToJob, hasAppliedToJob, isJobSavedByCandidate, saveJob, unsaveJob } from "@/api/job-actions";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/shared/chip";
+import { JobMatchDialog } from "@/components/shared/job-match-dialog";
 import { pushNotification } from "@/lib/notifications";
 import {
   formatEmploymentType,
@@ -26,6 +28,7 @@ export function JobDetailPage() {
   const jobId = id as string;
   const candidateId = profile?.id ?? "";
   const isCandidate = profile?.role === "candidate";
+  const [isMatchOpen, setIsMatchOpen] = useState(false);
 
   const jobQuery = useQuery({
     queryKey: ["job", id],
@@ -97,9 +100,6 @@ export function JobDetailPage() {
           body: `Your application to ${job.title} at ${job.company_name} was submitted successfully.`,
         });
       }
-      // Best-effort — a failed confirmation email should never block
-      // or roll back an otherwise-successful application.
-    //   notifyApplicationSubmitted({ jobId, candidateId }).catch(() => undefined);
     },
     onError: (error: Error) => {
       if (error.message === "NO_RESUME") {
@@ -196,6 +196,11 @@ export function JobDetailPage() {
             <Button variant="outline" size="lg" onClick={() => saveToggle.mutate()} disabled={saveToggle.isPending}>
               {savedQuery.data ? "Unsave" : "Save"}
             </Button>
+            {profile?.resume_url && (
+              <Button variant="outline" size="lg" onClick={() => setIsMatchOpen(true)}>
+                Analyze Resume For This Job
+              </Button>
+            )}
           </>
         )}
 
@@ -270,6 +275,16 @@ export function JobDetailPage() {
             ))}
           </ul>
         </div>
+      )}
+
+      {isCandidate && profile?.resume_url && (
+        <JobMatchDialog
+          isOpen={isMatchOpen}
+          onOpenChange={setIsMatchOpen}
+          candidateId={candidateId}
+          jobId={jobId}
+          jobTitle={job.title}
+        />
       )}
     </div>
   );
