@@ -301,9 +301,14 @@ export function CandidateProfilePage() {
               {profile?.resume_url ? "Replace" : "Upload"}
             </Button>
             {profile?.resume_url && !resumeFile && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsReviewOpen(true)}>
-                AI Resume Review
-              </Button>
+              <div className="flex flex-col gap-1.5 items-start">
+                <Button type="button" variant="outline" size="sm" disabled className="opacity-50 cursor-not-allowed">
+                  Coming Soon
+                </Button>
+                <span className="font-mono text-[10px] uppercase tracking-wide text-ink-soft">
+                  AI Resume Review will be available soon.
+                </span>
+              </div>
             )}
             <input
               ref={fileInputRef}
