@@ -4,12 +4,28 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchPublishedJobs } from "@/api/jobs";
 import { ROUTES } from "@/constants/routes";
 import { formatEmploymentType, formatRelativeDate, formatWorkMode } from "@/utils/format";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export function LandingPage() {
   const { data: jobs, isLoading } = useQuery({
     queryKey: ["jobs", "landing-index"],
     queryFn: () => fetchPublishedJobs({ limit: 6 }),
   });
+
+  const { isSignedIn, profile } = useCurrentUser();
+
+  let ctaTo: string = ROUTES.signUp;
+  let ctaText = "Sign up to review resume";
+
+  if (isSignedIn) {
+    if (profile?.role === "candidate") {
+      ctaTo = ROUTES.candidateProfile;
+      ctaText = "Go to Profile to Review Resume";
+    } else {
+      ctaTo = ROUTES.recruiterDashboard;
+      ctaText = "Go to Dashboard";
+    }
+  }
 
   return (
     <div className="mx-auto max-w-[1400px] px-6 sm:px-10">
@@ -152,21 +168,21 @@ export function LandingPage() {
               </ul>
             </div>
 
-            <div className="mt-10 flex flex-col gap-3 items-start">
-              <div className="flex flex-wrap items-center gap-4">
-                <button
-                  disabled
-                  className="border border-grid bg-paper-dim text-ink-soft cursor-not-allowed px-6 py-3 font-mono text-sm uppercase tracking-wide opacity-50"
+            <div className="mt-10 flex flex-wrap items-center gap-4">
+              <Link
+                to={ctaTo}
+                className="border border-ink bg-ink px-6 py-3 font-mono text-sm uppercase tracking-wide text-paper transition-colors hover:bg-signal hover:border-signal"
+              >
+                {ctaText} →
+              </Link>
+              {!isSignedIn && (
+                <Link
+                  to={ROUTES.signIn}
+                  className="font-mono text-xs uppercase tracking-wide text-ink-soft hover:text-signal"
                 >
-                  Coming Soon
-                </button>
-                <span className="inline-block px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide bg-signal/10 text-signal border border-signal/25">
-                  Temporarily Offline
-                </span>
-              </div>
-              <p className="font-mono text-[10px] uppercase tracking-wide text-ink-soft">
-                AI Resume Review will be available soon.
-              </p>
+                  Or sign in to your account
+                </Link>
+              )}
             </div>
           </div>
 

@@ -197,14 +197,9 @@ export function JobDetailPage() {
               {savedQuery.data ? "Unsave" : "Save"}
             </Button>
             {profile?.resume_url && (
-              <div className="flex flex-col gap-1.5 items-start">
-                <Button variant="outline" size="lg" disabled className="opacity-50 cursor-not-allowed">
-                  Coming Soon
-                </Button>
-                <span className="font-mono text-[10px] uppercase tracking-wide text-ink-soft">
-                  AI Job Match will be available soon.
-                </span>
-              </div>
+              <Button variant="outline" size="lg" onClick={() => setIsMatchOpen(true)}>
+                Analyze Resume For This Job
+              </Button>
             )}
           </>
         )}
