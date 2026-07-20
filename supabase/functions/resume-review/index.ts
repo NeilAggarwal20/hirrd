@@ -85,17 +85,36 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const candidateId = await getCallerId(req);
+    console.log("[1] Authenticating user...");
+    let candidateId: string;
+    try {
+      candidateId = await getCallerId(req);
+      console.log(`[1] Authenticated candidate ID: ${candidateId}`);
+    } catch (e) {
+      console.error("[1] Authentication failed:", e.message, e.stack, e);
+      throw e;
+    }
+
+    console.log("[2] Fetching user profile...");
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    let user;
+    try {
+      const { data, error: userError } = await supabaseAdmin
+        .from("users")
+        .select("resume_url")
+        .eq("id", candidateId)
+        .maybeSingle();
 
-    const { data: user, error: userError } = await supabaseAdmin
-      .from("users")
-      .select("resume_url")
-      .eq("id", candidateId)
-      .maybeSingle();
+      if (userError) throw userError;
+      user = data;
+      console.log(`[2] User profile fetched. resume_url: ${user?.resume_url}`);
+    } catch (e) {
+      console.error("[2] Fetching user profile failed:", e.message, e.stack, e);
+      throw e;
+    }
 
-    if (userError) throw userError;
     if (!user?.resume_url) {
+      console.log("[2] Exit: No resume uploaded yet");
       return new Response(JSON.stringify({ error: "No resume uploaded yet" }), {
         status: 400,
         headers: corsHeaders,
@@ -103,43 +122,94 @@ Deno.serve(async (req: Request) => {
     }
     const resumePath = user.resume_url;
 
-    // Cache hit: same candidate, same resume file, no need to call Gemini again.
-    const { data: cached } = await supabaseAdmin
-      .from("ai_resume_reviews")
-      .select("resume_path, result")
-      .eq("candidate_id", candidateId)
-      .maybeSingle();
-
-    if (cached && cached.resume_path === resumePath) {
-      return new Response(JSON.stringify(cached.result), { status: 200, headers: corsHeaders });
+    console.log("[3] Checking review cache...");
+    let cached;
+    try {
+      const { data } = await supabaseAdmin
+        .from("ai_resume_reviews")
+        .select("resume_path, result")
+        .eq("candidate_id", candidateId)
+        .maybeSingle();
+      cached = data;
+    } catch (e) {
+      console.error("[3] Warning: Cache check failed (continuing):", e.message, e.stack, e);
     }
 
-    const { data: fileBlob, error: downloadError } = await supabaseAdmin.storage
-      .from("resumes")
-      .download(resumePath);
-    if (downloadError) throw downloadError;
+    if (cached && cached.resume_path === resumePath) {
+      console.log("[3] Cache hit! Returning cached result");
+      return new Response(JSON.stringify(cached.result), { status: 200, headers: corsHeaders });
+    }
+    console.log("[3] Cache miss or file changed.");
 
-    const bytes = new Uint8Array(await fileBlob.arrayBuffer());
-    const resumeText = await extractResumeText(bytes);
+    console.log(`[4] Downloading resume PDF from storage: ${resumePath}...`);
+    let fileBlob;
+    try {
+      const { data, error: downloadError } = await supabaseAdmin.storage
+        .from("resumes")
+        .download(resumePath);
+      if (downloadError) throw downloadError;
+      fileBlob = data;
+      console.log("[4] Resume PDF downloaded successfully");
+    } catch (e) {
+      console.error("[4] Download PDF failed:", e.message, e.stack, e);
+      throw e;
+    }
+
+    console.log("[5] Extracting text from PDF...");
+    let resumeText;
+    try {
+      const bytes = new Uint8Array(await fileBlob.arrayBuffer());
+      resumeText = await extractResumeText(bytes);
+      console.log(`[5] Text extraction complete. Extracted text length: ${resumeText?.length ?? 0}`);
+    } catch (e) {
+      console.error("[5] Text extraction failed:", e.message, e.stack, e);
+      throw e;
+    }
+
     if (!resumeText || resumeText.length < 30) {
+      console.log("[5] Exit: Extracted text too short or empty");
       return new Response(JSON.stringify({ error: "Could not read text from this resume file" }), {
         status: 422,
         headers: corsHeaders,
       });
     }
 
-    const rawResult = await callGeminiForJson(buildPrompt(resumeText));
-    const result = normalizeResumeReview(rawResult);
+    console.log("[6] Calling Gemini for JSON review...");
+    let rawResult;
+    try {
+      rawResult = await callGeminiForJson(buildPrompt(resumeText));
+      console.log("[6] Gemini successfully responded");
+    } catch (e) {
+      console.error("[6] Gemini invocation failed:", e.message, e.stack, e);
+      throw e;
+    }
 
-    await supabaseAdmin.from("ai_resume_reviews").upsert(
-      { candidate_id: candidateId, resume_path: resumePath, result },
-      { onConflict: "candidate_id" }
-    );
+    console.log("[6] Normalizing Gemini response...");
+    let result;
+    try {
+      result = normalizeResumeReview(rawResult);
+      console.log("[6] Normalization complete:", JSON.stringify(result));
+    } catch (e) {
+      console.error("[6] Normalization failed:", e.message, e.stack, e);
+      throw e;
+    }
+
+    console.log("[7] Writing review result to database...");
+    try {
+      await supabaseAdmin.from("ai_resume_reviews").upsert(
+        { candidate_id: candidateId, resume_path: resumePath, result },
+        { onConflict: "candidate_id" }
+      );
+      console.log("[7] Database write complete");
+    } catch (e) {
+      console.error("[7] Database write failed:", e.message, e.stack, e);
+      throw e;
+    }
 
     return new Response(JSON.stringify(result), { status: 200, headers: corsHeaders });
   } catch (error) {
-    console.error("resume-review error", error);
-    return new Response(JSON.stringify({ error: "Failed to analyze resume" }), {
+    console.error("resume-review fatal error:", error.message, error.stack, error);
+    return new Response(JSON.stringify({ error: error.message || "Failed to analyze resume" }), {
       status: 500,
       headers: corsHeaders,
     });
