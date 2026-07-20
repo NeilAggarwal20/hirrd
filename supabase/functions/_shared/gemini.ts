@@ -17,7 +17,8 @@ export async function callGeminiForJson(prompt: string): Promise<unknown> {
 
   const modelsToTry = [
     GEMINI_MODEL,
-    ...(GEMINI_MODEL !== "gemini-1.5-flash" ? ["gemini-1.5-flash"] : []),
+    ...(GEMINI_MODEL !== "gemini-2.5-flash" ? ["gemini-2.5-flash"] : []),
+    ...(GEMINI_MODEL !== "gemini-flash-latest" ? ["gemini-flash-latest"] : []),
   ];
 
   let lastError: Error | null = null;
