@@ -51,18 +51,18 @@ export function formatResumeCompletion(profile: {
   headline: string | null;
   bio: string | null;
   resume_url: string | null;
-  skills: string[];
-  experience: unknown[];
-  education: unknown[];
+skills?: string[] | null;
+experience?: unknown[] | null;
+education?: unknown[] | null;
 }): number {
-  const checks = [
-    !!profile.headline,
-    !!profile.bio,
-    !!profile.resume_url,
-    profile.skills.length > 0,
-    profile.experience.length > 0,
-    profile.education.length > 0,
-  ];
+const checks = [
+  !!profile.headline,
+  !!profile.bio,
+  !!profile.resume_url,
+  (profile.skills ?? []).length > 0,
+  (profile.experience ?? []).length > 0,
+  (profile.education ?? []).length > 0,
+];
   const complete = checks.filter(Boolean).length;
   return Math.round((complete / checks.length) * 100);
 }

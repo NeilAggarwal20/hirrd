@@ -64,7 +64,7 @@ function ReviewSkeleton() {
 
 export function ResumeReviewDialog({ isOpen, onOpenChange, candidateId }: ResumeReviewDialogProps) {
   const query = useQuery({
-    queryKey: ["ai-resume-review", candidateId],
+    queryKey: ["ai-resume-review-v2", candidateId],
     queryFn: fetchResumeReview,
     enabled: isOpen,
     staleTime: Infinity,

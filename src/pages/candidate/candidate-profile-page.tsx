@@ -43,13 +43,21 @@ export function CandidateProfilePage() {
       lastName: profile?.last_name ?? "",
       headline: profile?.headline ?? "",
       bio: profile?.bio ?? "",
-      skills: profile?.skills.join(", ") ?? "",
+      skills: profile?.skills?.join(", ") ?? "",
       portfolioUrl: profile?.portfolio_url ?? "",
       githubUrl: profile?.github_url ?? "",
       linkedinUrl: profile?.linkedin_url ?? "",
       phone: profile?.phone ?? "",
-      experience: profile?.experience.map((e) => ({ ...e, end_date: e.end_date ?? "" })) ?? [],
-      education: profile?.education.map((e) => ({ ...e, end_date: e.end_date ?? "" })) ?? [],
+      experience:
+  profile?.experience?.map((e) => ({
+    ...e,
+    end_date: e.end_date ?? "",
+  })) ?? [],
+      education:
+  profile?.education?.map((e) => ({
+    ...e,
+    end_date: e.end_date ?? "",
+  })) ?? [],
     },
   });
 
@@ -105,16 +113,16 @@ export function CandidateProfilePage() {
     }
   }
 
-  const completion = profile
-    ? formatResumeCompletion({
-        headline: profile.headline,
-        bio: profile.bio,
-        resume_url: profile.resume_url,
-        skills: profile.skills,
-        experience: profile.experience,
-        education: profile.education,
-      })
-    : 0;
+const completion = profile
+  ? formatResumeCompletion({
+      headline: profile.headline,
+      bio: profile.bio,
+      resume_url: profile.resume_url,
+      skills: profile.skills ?? [],
+      experience: profile.experience ?? [],
+      education: profile.education ?? [],
+    })
+  : 0;
 
   function handleRestartTour() {
     if (!profile) return;
