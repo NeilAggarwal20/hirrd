@@ -37,16 +37,7 @@ async function readFunctionErrorMessage(error: unknown, fallback: string): Promi
  * The candidate is identified server-side from their session token —
  * there's nothing to pass here.
  */
-export async function fetchResumeReview(): Promise<ResumeReviewResult> {
-  const token = await getClerkTokenValue();
-  const { data, error } = await supabase.functions.invoke<ResumeReviewResult>("resume-review", {
-    body: {},
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (error) throw new Error(await readFunctionErrorMessage(error, "Couldn't analyze your resume."));
-  if (!data) throw new Error("Couldn't analyze your resume.");
-  return data;
-}
+
 
 /** Runs (or returns the cached) AI match of the caller's resume against one job. */
 export async function fetchJobMatch(jobId: string): Promise<JobMatchResult> {
@@ -60,3 +51,24 @@ export async function fetchJobMatch(jobId: string): Promise<JobMatchResult> {
   return data;
 }
 
+export async function fetchResumeReview(): Promise<ResumeReviewResult> {
+  const token = await getClerkTokenValue();
+
+  const { data, error } = await supabase.functions.invoke<ResumeReviewResult>(
+    "resume-review",
+    {
+      body: {},
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }
+  );
+
+  if (error)
+    throw new Error(
+      await readFunctionErrorMessage(error, "Couldn't analyze your resume.")
+    );
+
+  if (!data)
+    throw new Error("Couldn't analyze your resume.");
+
+  return data;
+}

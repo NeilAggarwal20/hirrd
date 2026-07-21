@@ -15,7 +15,7 @@ function ScoreCard({ label, score }: { label: string; score: number }) {
   return (
     <div className="border border-grid p-4">
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">{label}</p>
-      <p className="mt-2 font-display text-4xl font-extrabold text-ink">{score}</p>
+      <p className="mt-2 font-display text-4xl font-extrabold text-ink">{score}%</p>
       <div className="mt-3 h-1.5 w-full bg-paper-dim">
         <div className="h-1.5 bg-signal transition-all" style={{ width: `${score}%` }} />
       </div>
@@ -23,7 +23,13 @@ function ScoreCard({ label, score }: { label: string; score: number }) {
   );
 }
 
-function ListSection({ title, items }: { title: string; items: string[] }) {
+function ListSection({
+  title,
+  items = [],
+}: {
+  title: string;
+  items?: string[];
+}) {
   if (items.length === 0) return null;
   return (
     <div>
@@ -109,24 +115,24 @@ export function ResumeReviewDialog({ isOpen, onOpenChange, candidateId }: Resume
                 <ScoreCard label="ATS Score" score={query.data.atsScore} />
               </div>
 
-              <ListSection title="Strengths" items={query.data.strengths} />
-              <ListSection title="Weaknesses" items={query.data.weaknesses} />
+            <ListSection title="Strengths" items={query.data.strengths ?? []} />
+            <ListSection title="Weaknesses" items={query.data.weaknesses ?? []} />
 
-              {query.data.missingSkills.length > 0 && (
+              {(query.data.missingSkills ?? []).length > 0 && (
                 <div>
                   <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
                     Missing skills
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {query.data.missingSkills.map((skill) => (
+                    {(query.data.missingSkills ?? []).map((skill) => (
                       <Chip key={skill}>{skill}</Chip>
                     ))}
                   </div>
                 </div>
               )}
 
-              <ListSection title="Grammar issues" items={query.data.grammarIssues} />
-              <ListSection title="Suggestions" items={query.data.suggestions} />
+<ListSection title="Grammar issues" items={query.data.grammarIssues ?? []} />
+<ListSection title="Suggestions" items={query.data.suggestions ?? []} />
             </div>
           )}
         </Dialog.Content>

@@ -102,13 +102,13 @@ export function JobMatchDialog({ isOpen, onOpenChange, candidateId, jobId, jobTi
                 </div>
               </div>
 
-              {query.data.matchedSkills.length > 0 && (
+              {(query.data.matchedSkills ?? []).length > 0 && (
                 <div>
                   <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
                     Matched skills
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {query.data.matchedSkills.map((skill) => (
+                    {(query.data.matchedSkills ?? []).map((skill) => (
                       <Chip key={skill} className="text-meadow border-meadow/40">
                         {skill}
                       </Chip>
@@ -117,13 +117,13 @@ export function JobMatchDialog({ isOpen, onOpenChange, candidateId, jobId, jobTi
                 </div>
               )}
 
-              {query.data.missingSkills.length > 0 && (
+              {(query.data.missingSkills ?? []).length > 0 && (
                 <div>
                   <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
                     Missing skills
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {query.data.missingSkills.map((skill) => (
+                    {(query.data.missingSkills ?? []).map((skill) => (
                       <Chip key={skill} className="text-signal border-signal/40">
                         {skill}
                       </Chip>
@@ -132,8 +132,8 @@ export function JobMatchDialog({ isOpen, onOpenChange, candidateId, jobId, jobTi
                 </div>
               )}
 
-              <ListSection title="Resume weaknesses" items={query.data.resumeWeaknesses} />
-              <ListSection title="Recommendations" items={query.data.recommendations} />
+              <ListSection title="Resume weaknesses" items={query.data.resumeWeaknesses ?? []} />
+              <ListSection title="Recommendations" items={query.data.recommendations ?? []} />
             </div>
           )}
         </Dialog.Content>
