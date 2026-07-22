@@ -6,3 +6,9 @@ verify_jwt = false
 
 [functions.candidate-analysis]
 verify_jwt = false
+
+[functions.mock-interview-generate]
+verify_jwt = false
+
+[functions.mock-interview-evaluate]
+verify_jwt = false

@@ -41,7 +41,7 @@ export interface CandidateAnalysisResult {
 }
 
 /** Edge functions respond with `{ error: string }` JSON on non-2xx statuses. */
-async function readFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
+export async function readFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
   if (error instanceof FunctionsHttpError) {
     try {
       const body = (await error.context.json()) as { error?: string };

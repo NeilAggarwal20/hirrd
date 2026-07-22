@@ -1,23 +1,26 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { fetchMyApplications, fetchMySavedJobs, withdrawApplication } from "@/api/candidate";
+import { fetchMyMockInterviews, type MockInterviewHistoryItem } from "@/api/mock-interview";
 import { fetchPublishedJobs } from "@/api/jobs";
 import { ROUTES } from "@/constants/routes";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ListSkeleton } from "@/components/shared/list-skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { InterviewHistoryCard } from "@/components/shared/interview-history-card";
+import { InterviewResultsDialog } from "@/components/shared/interview-results-dialog";
 import { Button } from "@/components/ui/button";
 import { formatRelativeDate, formatResumeCompletion } from "@/utils/format";
 import { toast } from "sonner";
-import { ProductTour } from "@/components/shared/product-tour";
-import { candidateTourSteps } from "@/config/product-tours";
 
 export function CandidateDashboardPage() {
+  const queryClient = useQueryClient();
   const { profile } = useCurrentUser();
   const candidateId = profile?.id ?? "";
-  const queryClient = useQueryClient();
+  const [withdrawId, setWithdrawId] = useState<string | null>(null);
 
   const applicationsQuery = useQuery({
     queryKey: ["my-applications", candidateId],
@@ -25,156 +28,212 @@ export function CandidateDashboardPage() {
     enabled: !!candidateId,
   });
 
-  const savedQuery = useQuery({
+  const savedJobsQuery = useQuery({
     queryKey: ["my-saved-jobs", candidateId],
     queryFn: () => fetchMySavedJobs(candidateId),
     enabled: !!candidateId,
   });
 
-  const recommendedQuery = useQuery({
+  const recommendedJobsQuery = useQuery({
     queryKey: ["recommended-jobs"],
     queryFn: () => fetchPublishedJobs({ sort: "newest", limit: 8 }),
   });
 
+  const interviewHistoryQuery = useQuery({
+    queryKey: ["my-mock-interviews", candidateId],
+    queryFn: () => fetchMyMockInterviews(candidateId),
+    enabled: !!candidateId,
+  });
+
+  const [selectedInterview, setSelectedInterview] = useState<MockInterviewHistoryItem | null>(null);
+
   const withdrawMutation = useMutation({
     mutationFn: (id: string) => withdrawApplication(id),
     onSuccess: () => {
+      toast.success("Application withdrawn.");
       queryClient.invalidateQueries({ queryKey: ["my-applications", candidateId] });
-      queryClient.invalidateQueries({ queryKey: ["my-saved-jobs-count", candidateId] });
-      toast.success("Application withdrawn");
+      setWithdrawId(null);
     },
-    onError: () => toast.error("Couldn't withdraw this application."),
+    onError: (err: Error) => {
+      toast.error(err.message || "Failed to withdraw application.");
+    },
   });
 
-  const appliedJobIds = new Set((applicationsQuery.data ?? []).map((a) => a.job_id));
-  const recommended = (recommendedQuery.data ?? []).filter((job) => !appliedJobIds.has(job.id)).slice(0, 4);
+  const applications = applicationsQuery.data ?? [];
+  const savedJobs = savedJobsQuery.data ?? [];
 
-  const completion = profile
-    ? formatResumeCompletion({
-        headline: profile.headline,
-        bio: profile.bio,
-        resume_url: profile.resume_url,
-        skills: profile.skills,
-        experience: profile.experience,
-        education: profile.education,
-      })
-    : 0;
+  const activeApplications = applications.filter(
+    (app) => app.status !== "rejected" && app.status !== "withdrawn"
+  );
 
   return (
-    <div>
-      <ProductTour
-        steps={candidateTourSteps}
-        storageKey={`hirrd:tour:candidate:${profile?.id ?? "anon"}`}
-        enabled={!!profile?.id && !!profile.onboarding_completed}
-      />
-      <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">Candidate</p>
-      <h1
-        data-tour="candidate-dashboard-welcome"
-        className="mt-2 font-display text-3xl font-extrabold uppercase tracking-tight text-ink"
-      >
-        Dashboard
-      </h1>
-
-      <div className="mt-8 grid grid-cols-2 gap-4 border-b border-grid pb-8 sm:grid-cols-4">
-        <StatCard label="Applications" value={applicationsQuery.data?.length ?? 0} />
-        <StatCard label="Saved roles" value={savedQuery.data?.length ?? 0} />
-        <div data-tour="candidate-resume-card" className="border border-grid p-4">
-          <span className="index-figure block text-3xl text-ink">{completion}%</span>
-          <span className="font-mono text-xs uppercase tracking-wide text-ink-soft">Resume complete</span>
-          {completion < 100 && (
-            <Link
-              to={ROUTES.candidateProfile}
-              className="mt-1 block font-mono text-[11px] text-signal hover:underline"
-            >
-              Finish it →
-            </Link>
-          )}
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-grid pb-6">
+        <div>
+          <h1 className="font-display text-3xl font-extrabold uppercase tracking-tight text-ink">
+            Candidate Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-ink-soft">
+            Manage your applications, saved jobs, and practice sessions.
+          </p>
         </div>
+
+        <Button asChild>
+          <Link to={ROUTES.JOBS}>Browse Jobs</Link>
+        </Button>
       </div>
 
-      {recommended.length > 0 && (
-        <div data-tour="candidate-recommended" className="mt-8">
-          <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
-            Recommended for you
-          </p>
-          <ul>
-            {recommended.map((job, index) => (
-              <li key={job.id} className="border-b border-grid py-4">
-                <Link to={ROUTES.jobDetail(job.id)} className="group flex items-baseline gap-4">
-                  <span className="index-figure text-sm text-signal">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div>
-                    <p className="font-medium text-ink group-hover:text-signal">{job.title}</p>
-                    <p className="mt-1 font-mono text-xs uppercase tracking-wide text-ink-soft">
-                      {job.company_name} · {job.category}
-                    </p>
-                  </div>
-                </Link>
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <StatCard label="Total Applications" value={applications.length} />
+        <StatCard label="Active Applications" value={activeApplications.length} />
+        <StatCard
+          label="Profile Completion"
+          value={`${formatResumeCompletion(profile?.resume_url)}%`}
+        />
+      </div>
+
+      <div className="mt-10">
+        <div className="flex items-center justify-between border-b border-grid pb-3">
+          <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
+            My Applications
+          </h2>
+          <span className="font-mono text-xs text-ink-soft">{applications.length} Total</span>
+        </div>
+
+        {applicationsQuery.isLoading && <ListSkeleton className="mt-4" />}
+
+        {!applicationsQuery.isLoading && applications.length > 0 && (
+          <ul className="divide-y divide-grid">
+            {applications.map((app) => (
+              <li key={app.id} className="flex flex-wrap items-center justify-between gap-4 py-4">
+                <div className="min-w-0">
+                  <Link
+                    to={ROUTES.JOB_DETAIL(app.job_id)}
+                    className="truncate font-medium text-ink hover:underline"
+                  >
+                    {app.jobs?.title ?? "Position no longer available"}
+                  </Link>
+                  <p className="mt-1 flex flex-wrap gap-x-3 font-mono text-xs uppercase tracking-wide text-ink-soft">
+                    <span>{app.jobs?.companies?.name ?? "—"}</span>
+                    <span>·</span>
+                    <span>Applied {formatRelativeDate(app.created_at)}</span>
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <StatusBadge status={app.status} />
+                  {app.status !== "withdrawn" && app.status !== "rejected" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setWithdrawId(app.id)}
+                      className="cursor-pointer"
+                    >
+                      Withdraw
+                    </Button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
 
-      <div className="mt-8">
-        <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
-          Application timeline
-        </p>
-
-        {applicationsQuery.isLoading && <ListSkeleton />}
-
-        <ul>
-          {applicationsQuery.data?.map((application, index) => (
-            <li key={application.id} className="border-b border-grid py-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-baseline gap-4 min-w-0">
-                  <span className="index-figure text-sm text-signal">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0">
-                    <Link
-                      to={ROUTES.jobDetail(application.jobs?.id ?? "")}
-                      className="font-medium text-ink hover:text-signal block truncate"
-                    >
-                      {application.jobs?.title ?? "Role no longer available"}
-                    </Link>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-2 font-mono text-xs uppercase tracking-wide text-ink-soft">
-                      <span>{application.jobs?.companies?.name ?? "—"}</span>
-                      <span>·</span>
-                      <StatusBadge status={application.status} />
-                      <span>· {formatRelativeDate(application.created_at)}</span>
-                    </p>
-                  </div>
-                </div>
-
-                {application.status === "applied" && (
-                  <ConfirmDialog
-                    trigger={
-                      <Button size="sm" variant="outline" className="h-7 border-grid text-ink-soft hover:border-signal hover:text-signal text-[11px] font-mono uppercase tracking-wide">
-                        Withdraw
-                      </Button>
-                    }
-                    title="Withdraw application?"
-                    description="This action cannot be undone. You will have to re-apply from scratch if you want to consider this role again."
-                    confirmLabel="Withdraw"
-                    onConfirm={() => withdrawMutation.mutate(application.id)}
-                  />
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        {!applicationsQuery.isLoading && applicationsQuery.data?.length === 0 && (
+        {!applicationsQuery.isLoading && applications.length === 0 && (
           <p className="border-b border-grid py-8 text-sm text-ink-soft">
-            No applications yet.{" "}
-            <Link to={ROUTES.jobs} className="text-signal hover:underline">
-              Browse open roles →
-            </Link>
+            You haven't submitted any job applications yet.
           </p>
         )}
       </div>
+
+      <div className="mt-10">
+        <div className="flex items-center justify-between border-b border-grid pb-3">
+          <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
+            Saved Jobs
+          </h2>
+          <span className="font-mono text-xs text-ink-soft">{savedJobs.length} Saved</span>
+        </div>
+
+        {savedJobsQuery.isLoading && <ListSkeleton className="mt-4" />}
+
+        {!savedJobsQuery.isLoading && savedJobs.length > 0 && (
+          <ul className="divide-y divide-grid">
+            {savedJobs.map((saved) => (
+              <li key={saved.id} className="flex items-center justify-between gap-4 py-4">
+                <div>
+                  <Link
+                    to={ROUTES.JOB_DETAIL(saved.job_id)}
+                    className="font-medium text-ink hover:underline"
+                  >
+                    {saved.jobs?.title ?? "Role details"}
+                  </Link>
+                  <p className="mt-1 font-mono text-xs text-ink-soft">
+                    Saved {formatRelativeDate(saved.created_at)}
+                  </p>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <Link to={ROUTES.JOB_DETAIL(saved.job_id)}>View Role</Link>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {!savedJobsQuery.isLoading && savedJobs.length === 0 && (
+          <p className="border-b border-grid py-8 text-sm text-ink-soft">
+            No saved jobs found. Click "Save Job" on any posting to track it here.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-10">
+        <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">
+          Interview History
+        </p>
+
+        {interviewHistoryQuery.isLoading && <ListSkeleton />}
+
+        {!interviewHistoryQuery.isLoading && (interviewHistoryQuery.data?.length ?? 0) > 0 && (
+          <ul>
+            {interviewHistoryQuery.data!.map((interview) => (
+              <InterviewHistoryCard
+                key={interview.id}
+                interview={interview}
+                onView={() => setSelectedInterview(interview)}
+              />
+            ))}
+          </ul>
+        )}
+
+        {!interviewHistoryQuery.isLoading && interviewHistoryQuery.data?.length === 0 && (
+          <p className="border-b border-grid py-8 text-sm text-ink-soft">
+            No practice interviews yet. Open a role and try{" "}
+            <span className="font-medium text-ink">Practice AI Interview</span> to prepare before you apply.
+          </p>
+        )}
+      </div>
+
+      <ConfirmDialog
+        isOpen={!!withdrawId}
+        onOpenChange={(open) => {
+          if (!open) setWithdrawId(null);
+        }}
+        title="Withdraw Application"
+        description="Are you sure you want to withdraw this job application? This action cannot be undone."
+        confirmText="Withdraw Application"
+        isPending={withdrawMutation.isPending}
+        onConfirm={() => {
+          if (withdrawId) withdrawMutation.mutate(withdrawId);
+        }}
+      />
+
+      <InterviewResultsDialog
+        isOpen={!!selectedInterview}
+        onOpenChange={(open) => {
+          if (!open) setSelectedInterview(null);
+        }}
+        jobTitle={selectedInterview?.jobTitle}
+        result={selectedInterview}
+      />
     </div>
   );
 }
