@@ -8,7 +8,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useUser } from "@clerk/react";
 import { useCurrentUser, CURRENT_USER_QUERY_KEY } from "@/hooks/use-current-user";
 import { updateUserProfile } from "@/api/users";
-import { deleteResume, getResumeSignedUrl, uploadResume } from "@/api/storage";
+import { getResumeSignedUrl, uploadResume } from "@/api/storage";
 import { parseCommaList, profileFormSchema, type ProfileFormValues } from "@/lib/validation";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/ui/button";
@@ -69,12 +69,12 @@ export function CandidateProfilePage() {
       if (!profile) throw new Error("No profile loaded");
 
       let resumeUrl = profile.resume_url;
-      if (resumeFile) {
+    if (resumeFile) {
         resumeUrl = await uploadResume(profile.id, resumeFile);
-        if (profile.resume_url) {
-          deleteResume(profile.resume_url).catch(() => undefined);
-        }
-      }
+
+        // Previous resume is intentionally NOT deleted.
+        // Older job applications keep a snapshot of this resume.
+    }
 
       return updateUserProfile(profile.id, {
         first_name: values.firstName || null,

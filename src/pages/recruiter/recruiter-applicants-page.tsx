@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Sparkles } from "lucide-react";
 import { fetchApplicantsForJob, setApplicationStatus } from "@/api/recruiter-applications";
 import { getResumeSignedUrl } from "@/api/storage";
 import { fetchJobByIdForRecruiter } from "@/api/recruiter-jobs";
@@ -11,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { formatRelativeDate } from "@/utils/format";
 import { ResumeDialog } from "@/components/shared/resume-dialog";
+import { CandidateAnalysisDialog } from "@/components/shared/candidate-analysis-dialog";
 import type { ApplicationStatus } from "@/types/database.types";
 
 const statusOptions: { value: ApplicationStatus; label: string }[] = [
@@ -28,6 +30,12 @@ export function RecruiterApplicantsPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
   const [previewName, setPreviewName] = useState("");
+  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+  const [analysisTarget, setAnalysisTarget] = useState<{
+    applicationId: string;
+    candidateName: string;
+    resumePath: string;
+  } | null>(null);
 
   const jobQuery = useQuery({
     queryKey: ["recruiter-job", jobId],
@@ -70,6 +78,11 @@ export function RecruiterApplicantsPage() {
     } catch {
       toast.error("Couldn't open this resume.");
     }
+  }
+
+  function openAnalysis(applicationId: string, candidateName: string, resumePath: string) {
+    setAnalysisTarget({ applicationId, candidateName, resumePath });
+    setIsAnalysisOpen(true);
   }
 
   return (
@@ -117,6 +130,14 @@ export function RecruiterApplicantsPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => openAnalysis(applicant.id, name, applicant.resume_url)}
+                    className="cursor-pointer gap-1.5"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> AI Analysis
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => openResume(applicant.resume_url, name)} className="cursor-pointer">
                     View resume
                   </Button>
@@ -157,6 +178,19 @@ export function RecruiterApplicantsPage() {
         resumeUrl={previewUrl}
         candidateName={previewName}
       />
+
+      {/* AI Candidate Analysis Dashboard */}
+      {analysisTarget && (
+        <CandidateAnalysisDialog
+          key={analysisTarget.applicationId}
+          isOpen={isAnalysisOpen}
+          onOpenChange={setIsAnalysisOpen}
+          applicationId={analysisTarget.applicationId}
+          candidateName={analysisTarget.candidateName}
+          jobTitle={jobQuery.data?.title}
+          resumePath={analysisTarget.resumePath}
+        />
+      )}
     </div>
   );
 }

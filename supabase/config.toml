@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.resume-job-match]
 verify_jwt = false
+
+[functions.candidate-analysis]
+verify_jwt = false
