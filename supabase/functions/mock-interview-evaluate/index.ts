@@ -15,7 +15,7 @@ serve(async (req) => {
 
   try {
     const candidateId = await getCallerId(req);
-    if (!user) {
+    if (!candidateId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -1,6 +1,6 @@
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const GEMINI_MODEL =
-  Deno.env.get("GEMINI_MODEL") ?? "gemini-3.5-flash";
+  Deno.env.get("GEMINI_MODEL") ?? "gemini-1.5-flash";
 
 export async function callGeminiForJson(prompt: string): Promise<unknown> {
   if (!GEMINI_API_KEY) {

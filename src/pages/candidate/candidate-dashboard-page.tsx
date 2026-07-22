@@ -2,9 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { fetchMyApplications, fetchMySavedJobs, withdrawApplication } from "@/api/candidate";
+import { fetchMyApplications, fetchMySavedJobsWithDetails, withdrawApplication } from "@/api/candidate";
 import { fetchMyMockInterviews, type MockInterviewHistoryItem } from "@/api/mock-interview";
-import { fetchPublishedJobs } from "@/api/jobs";
 import { ROUTES } from "@/constants/routes";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -20,8 +19,7 @@ export function CandidateDashboardPage() {
   const queryClient = useQueryClient();
   const { profile } = useCurrentUser();
   const candidateId = profile?.id ?? "";
-  const [withdrawId, setWithdrawId] = useState<string | null>(null);
-
+  
   const applicationsQuery = useQuery({
     queryKey: ["my-applications", candidateId],
     queryFn: () => fetchMyApplications(candidateId),
@@ -30,14 +28,11 @@ export function CandidateDashboardPage() {
 
   const savedJobsQuery = useQuery({
     queryKey: ["my-saved-jobs", candidateId],
-    queryFn: () => fetchMySavedJobs(candidateId),
+    queryFn: () => fetchMySavedJobsWithDetails(candidateId),
     enabled: !!candidateId,
   });
 
-  const recommendedJobsQuery = useQuery({
-    queryKey: ["recommended-jobs"],
-    queryFn: () => fetchPublishedJobs({ sort: "newest", limit: 8 }),
-  });
+
 
   const interviewHistoryQuery = useQuery({
     queryKey: ["my-mock-interviews", candidateId],
@@ -52,7 +47,6 @@ export function CandidateDashboardPage() {
     onSuccess: () => {
       toast.success("Application withdrawn.");
       queryClient.invalidateQueries({ queryKey: ["my-applications", candidateId] });
-      setWithdrawId(null);
     },
     onError: (err: Error) => {
       toast.error(err.message || "Failed to withdraw application.");
@@ -63,7 +57,7 @@ export function CandidateDashboardPage() {
   const savedJobs = savedJobsQuery.data ?? [];
 
   const activeApplications = applications.filter(
-    (app) => app.status !== "rejected" && app.status !== "withdrawn"
+    (app) => app.status !== "rejected"
   );
 
   return (
@@ -79,7 +73,7 @@ export function CandidateDashboardPage() {
         </div>
 
         <Button asChild>
-          <Link to={ROUTES.JOBS}>Browse Jobs</Link>
+          <Link to={ROUTES.jobs}>Browse Jobs</Link>
         </Button>
       </div>
 
@@ -88,7 +82,7 @@ export function CandidateDashboardPage() {
         <StatCard label="Active Applications" value={activeApplications.length} />
         <StatCard
           label="Profile Completion"
-          value={`${formatResumeCompletion(profile?.resume_url)}%`}
+          value={`${formatResumeCompletion(profile || { headline: null, bio: null, resume_url: null })}%`}
         />
       </div>
 
@@ -100,7 +94,7 @@ export function CandidateDashboardPage() {
           <span className="font-mono text-xs text-ink-soft">{applications.length} Total</span>
         </div>
 
-        {applicationsQuery.isLoading && <ListSkeleton className="mt-4" />}
+        {applicationsQuery.isLoading && <ListSkeleton />}
 
         {!applicationsQuery.isLoading && applications.length > 0 && (
           <ul className="divide-y divide-grid">
@@ -108,7 +102,7 @@ export function CandidateDashboardPage() {
               <li key={app.id} className="flex flex-wrap items-center justify-between gap-4 py-4">
                 <div className="min-w-0">
                   <Link
-                    to={ROUTES.JOB_DETAIL(app.job_id)}
+                    to={ROUTES.jobDetail(app.job_id)}
                     className="truncate font-medium text-ink hover:underline"
                   >
                     {app.jobs?.title ?? "Position no longer available"}
@@ -122,15 +116,22 @@ export function CandidateDashboardPage() {
 
                 <div className="flex items-center gap-3">
                   <StatusBadge status={app.status} />
-                  {app.status !== "withdrawn" && app.status !== "rejected" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setWithdrawId(app.id)}
-                      className="cursor-pointer"
-                    >
-                      Withdraw
-                    </Button>
+                  {app.status !== "rejected" && (
+                    <ConfirmDialog
+                      trigger={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="cursor-pointer"
+                        >
+                          Withdraw
+                        </Button>
+                      }
+                      title="Withdraw Application"
+                      description="Are you sure you want to withdraw this job application? This action cannot be undone."
+                      confirmLabel="Withdraw Application"
+                      onConfirm={() => withdrawMutation.mutate(app.id)}
+                    />
                   )}
                 </div>
               </li>
@@ -153,7 +154,7 @@ export function CandidateDashboardPage() {
           <span className="font-mono text-xs text-ink-soft">{savedJobs.length} Saved</span>
         </div>
 
-        {savedJobsQuery.isLoading && <ListSkeleton className="mt-4" />}
+        {savedJobsQuery.isLoading && <ListSkeleton />}
 
         {!savedJobsQuery.isLoading && savedJobs.length > 0 && (
           <ul className="divide-y divide-grid">
@@ -161,7 +162,7 @@ export function CandidateDashboardPage() {
               <li key={saved.id} className="flex items-center justify-between gap-4 py-4">
                 <div>
                   <Link
-                    to={ROUTES.JOB_DETAIL(saved.job_id)}
+                    to={ROUTES.jobDetail(saved.job_id)}
                     className="font-medium text-ink hover:underline"
                   >
                     {saved.jobs?.title ?? "Role details"}
@@ -171,7 +172,7 @@ export function CandidateDashboardPage() {
                   </p>
                 </div>
                 <Button asChild variant="outline" size="sm">
-                  <Link to={ROUTES.JOB_DETAIL(saved.job_id)}>View Role</Link>
+                  <Link to={ROUTES.jobDetail(saved.job_id)}>View Role</Link>
                 </Button>
               </li>
             ))}
@@ -212,19 +213,6 @@ export function CandidateDashboardPage() {
         )}
       </div>
 
-      <ConfirmDialog
-        isOpen={!!withdrawId}
-        onOpenChange={(open) => {
-          if (!open) setWithdrawId(null);
-        }}
-        title="Withdraw Application"
-        description="Are you sure you want to withdraw this job application? This action cannot be undone."
-        confirmText="Withdraw Application"
-        isPending={withdrawMutation.isPending}
-        onConfirm={() => {
-          if (withdrawId) withdrawMutation.mutate(withdrawId);
-        }}
-      />
 
       <InterviewResultsDialog
         isOpen={!!selectedInterview}

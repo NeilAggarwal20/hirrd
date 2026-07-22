@@ -10,15 +10,46 @@ export type UserRole = "candidate" | "recruiter";
 
 export type UserRow = {
   id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
   role: UserRole;
+  onboarding_completed: boolean;
   resume_url: string | null;
+  headline: string | null;
+  bio: string | null;
+  skills: string[];
+  experience: any[];
+  education: any[];
+  portfolio_url: string | null;
+  github_url: string | null;
+  linkedin_url: string | null;
+  phone: string | null;
+  company_role: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 export type UserInsert = {
   id: string;
-  role: UserRole;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  avatar_url?: string | null;
+  role?: UserRole | null;
+  onboarding_completed?: boolean;
   resume_url?: string | null;
+  headline?: string | null;
+  bio?: string | null;
+  skills?: string[];
+  experience?: any[];
+  education?: any[];
+  portfolio_url?: string | null;
+  github_url?: string | null;
+  linkedin_url?: string | null;
+  phone?: string | null;
+  company_role?: string | null;
 };
 
 export type UserUpdate = Partial<UserInsert>;
@@ -28,16 +59,21 @@ export type CompanyRow = {
   recruiter_id: string;
   name: string;
   logo_url: string | null;
-  website_url: string | null;
+  website: string | null;
+  industry: string | null;
+  headquarters: string | null;
   description: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 export type CompanyInsert = {
   recruiter_id: string;
   name: string;
   logo_url?: string | null;
-  website_url?: string | null;
+  website?: string | null;
+  industry?: string | null;
+  headquarters?: string | null;
   description?: string | null;
 };
 
@@ -58,69 +94,75 @@ export type DepartmentInsert = {
 export type DepartmentUpdate = Partial<DepartmentInsert>;
 
 export type EmploymentType =
-  | "full_time"
-  | "part_time"
+  | "full-time"
+  | "part-time"
   | "contract"
-  | "internship"
-  | "freelance";
+  | "internship";
 
-export type LocationMode = "remote" | "hybrid" | "on_site";
+export type WorkMode = "remote" | "hybrid" | "onsite";
 
-export type ExperienceLevel = "entry" | "mid" | "senior" | "executive";
+export type ExperienceLevel = "entry" | "mid" | "senior" | "lead";
 
 export type JobStatus = "draft" | "published" | "archived" | "closed";
 
 export type JobRow = {
   id: string;
   recruiter_id: string;
-  company_id: string | null;
+  company_id: string;
   department_id: string | null;
   title: string;
   description: string;
   employment_type: EmploymentType;
-  location_mode: LocationMode;
+  work_mode: WorkMode;
   location: string | null;
   experience_level: ExperienceLevel;
+  category: string;
   salary_min: number | null;
   salary_max: number | null;
   salary_currency: string;
-  skills: string[] | null;
+  benefits: string[];
+  skills: string[];
   status: JobStatus;
+  published_at: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export type JobInsert = {
   recruiter_id: string;
-  company_id?: string | null;
+  company_id: string;
   department_id?: string | null;
   title: string;
   description: string;
   employment_type: EmploymentType;
-  location_mode: LocationMode;
+  work_mode: WorkMode;
   location?: string | null;
   experience_level: ExperienceLevel;
+  category: string;
   salary_min?: number | null;
   salary_max?: number | null;
   salary_currency?: string;
-  skills?: string[] | null;
+  benefits?: string[];
+  skills?: string[];
   status?: JobStatus;
+  published_at?: string | null;
 };
 
 export type JobUpdate = Partial<JobInsert>;
 
 export type ApplicationStatus =
-  | "submitted"
+  | "applied"
   | "under_review"
-  | "interviewing"
-  | "offered"
-  | "rejected"
-  | "withdrawn";
+  | "interview"
+  | "accepted"
+  | "rejected";
 
 export type ApplicationRow = {
   id: string;
   job_id: string;
   candidate_id: string;
+  resume_url: string;
+  cover_letter: string | null;
   status: ApplicationStatus;
   notes: string | null;
   created_at: string;
@@ -130,6 +172,8 @@ export type ApplicationRow = {
 export type ApplicationInsert = {
   job_id: string;
   candidate_id: string;
+  resume_url: string;
+  cover_letter?: string | null;
   status?: ApplicationStatus;
   notes?: string | null;
 };
@@ -179,11 +223,19 @@ export type JobApplicationStatsRow = {
   status: JobStatus;
   created_at: string;
   total_applications: number;
+  applied_count: number;
+  under_review_count: number;
+  interview_count: number;
+  accepted_count: number;
+  rejected_count: number;
 };
 
 export type JobListingRow = JobRow & {
   companies: Pick<CompanyRow, "id" | "name" | "logo_url"> | null;
   departments: Pick<DepartmentRow, "id" | "name"> | null;
+  company_name: string;
+  company_logo_url: string | null;
+  company_industry: string | null;
 };
 
 export type Database = {
@@ -319,11 +371,18 @@ export type Database = {
       job_listings: { Row: JobListingRow; Relationships: [] };
       job_application_stats: { Row: JobApplicationStatsRow; Relationships: [] };
     };
-    Functions: {};
+    Functions: {
+      job_applicant_count: {
+        Args: {
+          p_job_id: string;
+        };
+        Returns: number;
+      };
+    };
     Enums: {
       user_role: UserRole;
       employment_type: EmploymentType;
-      location_mode: LocationMode;
+      work_mode: WorkMode;
       experience_level: ExperienceLevel;
       job_status: JobStatus;
       application_status: ApplicationStatus;

@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Show } from "@clerk/react";
-import { Share2, Link as LinkIcon, Users, Sparkles } from "lucide-react";
+import { Share2, Users, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { fetchJobApplicantCount, fetchJobById, fetchRelatedJobs } from "@/api/jobs";
 import { applyToJob, hasAppliedToJob, isJobSavedByCandidate, saveJob, unsaveJob } from "@/api/job-actions";
@@ -64,13 +63,20 @@ export function JobDetailPage() {
     });
 
   const relatedJobsQuery = useQuery({
-    queryKey: ["related-jobs", jobQuery.data?.department_id],
-    queryFn: () => fetchRelatedJobs(jobQuery.data!.department_id, jobId),
-    enabled: !!jobQuery.data?.department_id,
+    queryKey: ["related-jobs", jobQuery.data?.category],
+    queryFn: () => fetchRelatedJobs(jobQuery.data!), 
+    enabled: !!jobQuery.data,
   });
 
   const applyMutation = useMutation({
-    mutationFn: () => applyToJob(candidateId, jobId),
+    mutationFn: () => {
+      if (!profile?.resume_url) throw new Error("Resume required to apply");
+      return applyToJob({
+        jobId,
+        candidateId,
+        resumeUrl: profile.resume_url,
+      });
+    },
     onSuccess: () => {
       toast.success("Application submitted successfully!");
       queryClient.invalidateQueries({ queryKey: ["has-applied", id, candidateId] });
@@ -78,11 +84,9 @@ export function JobDetailPage() {
 
       if (jobQuery.data?.recruiter_id) {
         pushNotification({
-          userId: jobQuery.data.recruiter_id,
-          type: "application_received",
+          type: "application_submitted",
           title: "New Job Application",
           body: `A candidate applied for ${jobQuery.data.title}.`,
-          data: { jobId, candidateId },
         });
       }
     },
@@ -164,7 +168,7 @@ export function JobDetailPage() {
           The position you are looking for may have been closed or removed.
         </p>
         <Button asChild className="mt-6">
-          <Link to={ROUTES.JOBS}>Browse All Jobs</Link>
+          <Link to={ROUTES.jobs}>Browse All Jobs</Link>
         </Button>
       </div>
     );
@@ -180,7 +184,7 @@ export function JobDetailPage() {
           <p className="mt-2 flex flex-wrap items-center gap-x-3 text-sm font-medium text-ink-soft">
             {job.companies?.name && <span>{job.companies.name}</span>}
             <span>·</span>
-            <span>{formatWorkMode(job.location_mode, job.location)}</span>
+            <span>{formatWorkMode(job.work_mode)}</span>
             <span>·</span>
             <span>{formatRelativeDate(job.created_at)}</span>
           </p>
@@ -194,7 +198,7 @@ export function JobDetailPage() {
       <div className="mt-6 flex flex-wrap gap-2">
         <Chip>{formatEmploymentType(job.employment_type)}</Chip>
         <Chip>{formatExperienceLevel(job.experience_level)}</Chip>
-        <Chip>{formatSalaryRange(job.salary_min, job.salary_max, job.salary_currency)}</Chip>
+        <Chip>{formatSalaryRange(job.salary_min, job.salary_max)}</Chip>
         {job.departments?.name && <Chip>{job.departments.name}</Chip>}
       </div>
 
@@ -280,12 +284,12 @@ export function JobDetailPage() {
             {relatedJobsQuery.data.map((relJob) => (
               <Link
                 key={relJob.id}
-                to={ROUTES.JOB_DETAIL(relJob.id)}
+                to={ROUTES.jobDetail(relJob.id)}
                 className="block border border-grid p-4 transition-colors hover:border-signal"
               >
                 <p className="font-medium text-ink">{relJob.title}</p>
                 <p className="mt-1 font-mono text-xs text-ink-soft">
-                  {formatWorkMode(relJob.location_mode, relJob.location)}
+                  {formatWorkMode(relJob.work_mode)}
                 </p>
               </Link>
             ))}
@@ -299,6 +303,7 @@ export function JobDetailPage() {
           onOpenChange={setIsMatchOpen}
           jobId={jobId}
           jobTitle={job.title}
+          candidateId={candidateId}
         />
       )}
 
