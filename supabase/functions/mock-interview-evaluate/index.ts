@@ -74,7 +74,7 @@ if (!user || user.role !== "candidate") {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
     const transcript = questions
       .map((q: any, i: number) => `Q${i + 1} (${q.type}): ${q.question}\nA: ${answers[i] || "(No answer provided)"}`)
