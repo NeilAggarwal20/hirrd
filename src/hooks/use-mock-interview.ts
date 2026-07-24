@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   generateMockInterview,
   evaluateMockInterview,
@@ -55,6 +55,13 @@ function clearDraft(candidateId: string, jobId: string) {
  *
  * A session is scoped to (candidateId, jobId) — starting again for the
  * same job resumes any unfinished draft instead of regenerating questions.
+ *
+ * Both start() and submit() de-duplicate concurrent calls: if one is
+ * already in flight (e.g. a fast double-click before the UI's disabled
+ * state takes effect), a second call reuses the same in-flight promise
+ * instead of firing a second request — belt-and-suspenders alongside the
+ * UI's own disabled buttons, and the layer that actually prevents a race
+ * regardless of render timing.
  */
 export function useMockInterview(jobId: string, candidateId: string | undefined) {
   const [phase, setPhase] = useState<MockInterviewPhase>("idle");
@@ -68,32 +75,44 @@ export function useMockInterview(jobId: string, candidateId: string | undefined)
   // changes from some external subscription.
   const hasDraft = candidateId ? readDraft(candidateId, jobId) !== null : false;
 
-  async function start() {
-    if (!candidateId) return;
-    setErrorMessage(null);
+  const startPromiseRef = useRef<Promise<void> | null>(null);
+  const submitPromiseRef = useRef<Promise<MockInterviewResult> | null>(null);
 
-    const draft = readDraft(candidateId, jobId);
-    if (draft) {
-      setQuestions(draft.questions);
-      setAnswers(draft.answers);
-      setCurrentIndex(draft.currentIndex);
-      setPhase("in-progress");
-      return;
-    }
+  function start(): Promise<void> {
+    if (!candidateId) return Promise.resolve();
+    if (startPromiseRef.current) return startPromiseRef.current;
 
-    setPhase("generating");
-    try {
-      const generated = await generateMockInterview(jobId);
-      const initialAnswers = new Array(generated.length).fill("");
-      setQuestions(generated);
-      setAnswers(initialAnswers);
-      setCurrentIndex(0);
-      setPhase("in-progress");
-      writeDraft(candidateId, { jobId, questions: generated, answers: initialAnswers, currentIndex: 0 });
-    } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "Something went wrong generating your interview.");
-      setPhase("error");
-    }
+    const promise = (async () => {
+      setErrorMessage(null);
+
+      const draft = readDraft(candidateId, jobId);
+      if (draft) {
+        setQuestions(draft.questions);
+        setAnswers(draft.answers);
+        setCurrentIndex(draft.currentIndex);
+        setPhase("in-progress");
+        return;
+      }
+
+      setPhase("generating");
+      try {
+        const generated = await generateMockInterview(jobId);
+        const initialAnswers = new Array(generated.length).fill("");
+        setQuestions(generated);
+        setAnswers(initialAnswers);
+        setCurrentIndex(0);
+        setPhase("in-progress");
+        writeDraft(candidateId, { jobId, questions: generated, answers: initialAnswers, currentIndex: 0 });
+      } catch (e) {
+        setErrorMessage(e instanceof Error ? e.message : "Something went wrong generating your interview.");
+        setPhase("error");
+      }
+    })().finally(() => {
+      startPromiseRef.current = null;
+    });
+
+    startPromiseRef.current = promise;
+    return promise;
   }
 
   function setAnswer(index: number, value: string) {
@@ -111,19 +130,31 @@ export function useMockInterview(jobId: string, candidateId: string | undefined)
     if (candidateId) writeDraft(candidateId, { jobId, questions, answers, currentIndex: clamped });
   }
 
-  async function submit(): Promise<MockInterviewResult> {
+  function submit(): Promise<MockInterviewResult> {
+    if (submitPromiseRef.current) return submitPromiseRef.current;
+
     setPhase("submitting");
     setErrorMessage(null);
-    try {
-      const result = await evaluateMockInterview(jobId, questions, answers);
-      if (candidateId) clearDraft(candidateId, jobId);
-      setPhase("idle");
-      return result;
-    } catch (e) {
-      setErrorMessage(e instanceof Error ? e.message : "Something went wrong evaluating your interview.");
-      setPhase("in-progress");
-      throw e;
-    }
+
+    const promise = (async () => {
+      try {
+        const result = await evaluateMockInterview(jobId, questions, answers);
+        if (candidateId) clearDraft(candidateId, jobId);
+        setPhase("idle");
+        return result;
+      } catch (e) {
+        // Answers are untouched here — the caller stays on the same
+        // question, in-progress, free to retry without losing anything.
+        setErrorMessage(e instanceof Error ? e.message : "Something went wrong evaluating your interview.");
+        setPhase("in-progress");
+        throw e;
+      }
+    })().finally(() => {
+      submitPromiseRef.current = null;
+    });
+
+    submitPromiseRef.current = promise;
+    return promise;
   }
 
   /** Discards the in-progress session (and its draft) without submitting. */

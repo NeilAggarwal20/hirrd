@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "framer-motion";
 import { Sparkles, X } from "lucide-react";
@@ -25,8 +25,8 @@ function RotatingCaption({ messages }: { messages: string[] }) {
   }, [messages]);
 
   return (
-    <div aria-live="polite" role="status" className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-signal">
-      <span className="relative flex h-2 w-2">
+    <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-signal">
+      <span className="relative flex h-2 w-2 shrink-0">
         <span className="absolute inline-flex h-full w-full animate-ping bg-signal opacity-75" />
         <span className="relative inline-flex h-2 w-2 bg-signal" />
       </span>
@@ -77,13 +77,25 @@ export function InterviewSessionDialog({
   const total = questions.length;
   const isLastQuestion = currentIndex === total - 1;
   const currentAnswer = answers[currentIndex] ?? "";
+  const isSubmitting = phase === "submitting";
+
+  // Belt-and-suspenders alongside the disabled button and the hook's own
+  // in-flight de-duplication: guarantees this handler can't kick off a
+  // second onSubmit() call while one is still resolving, regardless of
+  // render timing.
+  const isHandlingSubmitRef = useRef(false);
 
   async function handleSubmit() {
+    if (isHandlingSubmitRef.current) return;
+    isHandlingSubmitRef.current = true;
     try {
       const result = await onSubmit();
       onSubmitted(result);
     } catch {
-      // errorMessage is already surfaced by the hook — stay on this view.
+      // errorMessage is already surfaced by the hook — stay on this view,
+      // with everything still in place to retry.
+    } finally {
+      isHandlingSubmitRef.current = false;
     }
   }
 
@@ -113,7 +125,7 @@ export function InterviewSessionDialog({
           </Dialog.Description>
 
           {phase === "generating" && (
-            <div className="space-y-6">
+            <div className="space-y-6" aria-live="polite" role="status">
               <RotatingCaption messages={GENERATING_MESSAGES} />
               <div aria-hidden="true" className="animate-pulse space-y-3">
                 <div className="h-5 w-2/3 bg-paper-dim" />
@@ -141,37 +153,48 @@ export function InterviewSessionDialog({
                   question={questions[currentIndex]}
                   answer={currentAnswer}
                   onAnswerChange={onAnswerChange}
+                  disabled={isSubmitting}
                 />
               </div>
 
-              {errorMessage && <p className="mt-4 text-sm text-signal">{errorMessage}</p>}
-
-              {phase === "submitting" ? (
-                <div className="mt-6 border-t border-grid pt-5">
+              {/* Reserved-height status line: whichever of these three
+                  states is showing, the button row below never moves.
+                  This is what used to shift the Submit button down —
+                  the row's presence/absence and this text's
+                  presence/absence used to be conflated. */}
+              <div className="mt-4 min-h-[1.25rem]" aria-live="polite" role="status">
+                {isSubmitting ? (
                   <RotatingCaption messages={SUBMITTING_MESSAGES} />
-                </div>
-              ) : (
-                <div className="mt-6 flex items-center justify-between border-t border-grid pt-5">
+                ) : (
+                  errorMessage && <p className="text-sm text-signal">{errorMessage}</p>
+                )}
+              </div>
+
+              <div className="mt-2 flex items-center justify-between border-t border-grid pt-5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onGoTo(currentIndex - 1)}
+                  disabled={currentIndex === 0 || isSubmitting}
+                  className="cursor-pointer"
+                >
+                  Previous
+                </Button>
+                {isLastQuestion ? (
+                  <Button size="sm" onClick={handleSubmit} disabled={isSubmitting} className="cursor-pointer">
+                    {isSubmitting ? "Submitting…" : "Submit interview"}
+                  </Button>
+                ) : (
                   <Button
-                    variant="outline"
                     size="sm"
-                    onClick={() => onGoTo(currentIndex - 1)}
-                    disabled={currentIndex === 0}
+                    onClick={() => onGoTo(currentIndex + 1)}
+                    disabled={isSubmitting}
                     className="cursor-pointer"
                   >
-                    Previous
+                    Next
                   </Button>
-                  {isLastQuestion ? (
-                    <Button size="sm" onClick={handleSubmit} className="cursor-pointer">
-                      Submit interview
-                    </Button>
-                  ) : (
-                    <Button size="sm" onClick={() => onGoTo(currentIndex + 1)} className="cursor-pointer">
-                      Next
-                    </Button>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </Dialog.Content>

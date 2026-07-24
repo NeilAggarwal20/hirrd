@@ -15,6 +15,7 @@ interface InterviewQuestionCardProps {
   answer: string;
   onAnswerChange: (value: string) => void;
   questionKey: string | number;
+  disabled?: boolean;
 }
 
 export function InterviewQuestionCard({
@@ -22,6 +23,7 @@ export function InterviewQuestionCard({
   answer,
   onAnswerChange,
   questionKey,
+  disabled,
 }: InterviewQuestionCardProps) {
   return (
     <motion.div
@@ -43,6 +45,7 @@ export function InterviewQuestionCard({
         rows={7}
         className="mt-5"
         aria-label="Your answer"
+        disabled={disabled}
       />
     </motion.div>
   );
