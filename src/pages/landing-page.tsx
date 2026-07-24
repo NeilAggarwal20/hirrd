@@ -1,14 +1,16 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { FileSearch, UserSearch, Zap, Check, Sparkles, CheckCircle2 } from "lucide-react";
+import { FileSearch, Mic, UserSearch, Check, Sparkles, CheckCircle2 } from "lucide-react";
 import { fetchPublishedJobs } from "@/api/jobs";
 import { ROUTES } from "@/constants/routes";
 import { formatEmploymentType, formatRelativeDate, formatWorkMode } from "@/utils/format";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Chip } from "@/components/shared/chip";
+import { cn } from "@/lib/utils";
 
-const HERO_BADGES = ["AI Resume Review", "AI Candidate Analysis", "Recruiter Dashboard"];
+const HERO_BADGES = ["AI Resume Review", "AI Mock Interview", "AI Candidate Analysis", "Recruiter Dashboard"];
 
 const STATS = [
   { value: "1,200+", label: "AI Resume Reviews" },
@@ -16,29 +18,39 @@ const STATS = [
   { value: "<15s", label: "Avg. Analysis Time" },
 ];
 
-const AI_FEATURES = [
+// One shared showcase, three tabs — instead of a separate deep-dive
+// section per feature. Bullet items are always visible in the tab list
+// (so the page reads in full without clicking); selecting a tab swaps
+// the mock screenshot on the right.
+const AI_CAPABILITIES = [
   {
+    key: "resume-review",
     n: "01",
     icon: FileSearch,
     title: "AI Resume Review",
+    blurb: "Score your resume, close skill gaps, and check ATS fit — instantly.",
     items: ["ATS Score", "Resume Score", "Missing Skills", "Grammar Suggestions"],
   },
   {
+    key: "mock-interview",
     n: "02",
-    icon: UserSearch,
-    title: "AI Candidate Analysis",
-    items: ["Fit Score", "Hiring Recommendation", "Recruiter Summary", "Interview Questions"],
+    icon: Mic,
+    title: "AI Mock Interview",
+    blurb: "Practice a role-specific interview generated from your resume, then get scored on it.",
+    items: ["AI-Generated Questions", "Technical + HR Mix", "Instant AI Evaluation", "Sample Better Answers"],
   },
   {
+    key: "candidate-analysis",
     n: "03",
-    icon: Zap,
-    title: "Intelligent Hiring",
-    items: ["Resume Snapshotting", "Secure Authentication", "Fast Hiring Workflow"],
+    icon: UserSearch,
+    title: "AI Candidate Analysis",
+    blurb: "A structured hiring report for every applicant — before you open the resume.",
+    items: ["Fit Score", "Hiring Recommendation", "Recruiter Summary", "Interview Questions"],
   },
-];
+] as const;
 
 const TRADITIONAL_HIRING = ["Manual Resume Screening", "Inconsistent Evaluation", "Time Consuming"];
-const HIRRD_AI = ["AI Resume Review", "AI Candidate Analysis", "Structured Hiring", "Faster Decisions"];
+const HIRRD_AI = ["AI Resume Review", "AI Mock Interviews", "AI Candidate Analysis", "Faster Decisions"];
 
 const INFO_CARDS = [
   {
@@ -67,6 +79,33 @@ export function LandingPage() {
   });
 
   const { isSignedIn, profile } = useCurrentUser();
+  const [activeCapability, setActiveCapability] = useState<(typeof AI_CAPABILITIES)[number]["key"]>(
+    "resume-review"
+  );
+  const [isCapabilitiesPaused, setIsCapabilitiesPaused] = useState(false);
+
+    useEffect(() => {
+    if (isCapabilitiesPaused) return;
+
+    if (
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    ) {
+        return;
+    }
+
+    const timer = setTimeout(() => {
+        setActiveCapability((current) => {
+        const currentIndex = AI_CAPABILITIES.findIndex(
+            (cap) => cap.key === current
+        );
+        const nextIndex = (currentIndex + 1) % AI_CAPABILITIES.length;
+        return AI_CAPABILITIES[nextIndex].key;
+        });
+    }, 4000);
+
+    return () => clearTimeout(timer);
+    }, [activeCapability, isCapabilitiesPaused]);
 
   let ctaTo: string = ROUTES.signUp;
   let ctaText = "Sign up to review resume";
@@ -218,297 +257,313 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* AI Features — the capability set, at a glance, before the pitch */}
+      {/* AI Capabilities — one shared showcase with three tabs, instead of a
+          separate deep-dive section per feature. Bullet items stay visible
+          on every tab (so the page reads in full without a click); picking
+          a tab swaps the mock screenshot on the right. */}
       <section className="border-t border-grid py-12 md:py-16">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">Platform — AI layer</p>
         <h2 className="mt-4 max-w-2xl font-display text-3xl font-extrabold uppercase leading-[0.95] tracking-tight text-ink sm:text-4xl">
           Hiring intelligence, built in.
         </h2>
 
-        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {AI_FEATURES.map((feature, i) => {
-            const Icon = feature.icon;
-            return (
-              <motion.div
-                key={feature.n}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ delay: i * 0.08, duration: 0.4, ease: "easeOut" }}
-                className="group border border-grid bg-paper p-5 transition-colors duration-200 hover:border-signal"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="index-figure text-sm text-signal">{feature.n}</span>
-                  <Icon
-                    className="h-4 w-4 text-ink-soft transition-colors duration-200 group-hover:text-signal"
-                    aria-hidden="true"
-                  />
-                </div>
-                <h3 className="mt-3 font-display text-lg font-bold uppercase tracking-tight text-ink">
-                  {feature.title}
-                </h3>
-                <ul className="mt-3 space-y-1.5">
-                  {feature.items.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm text-ink-soft">
-                      <span className="h-1 w-1 shrink-0 bg-signal" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* AI Resume Review Promo Section */}
-      <section className="border-t border-grid py-12 md:py-16">
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-12 md:gap-8 items-stretch">
-          {/* Pitch Column */}
-          <div className="md:col-span-7 flex flex-col justify-between">
-            <div>
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">
-                AI Optimization — Edition 01
-              </p>
-              <h2 className="mt-4 font-display text-4xl font-extrabold uppercase leading-[0.95] tracking-tight text-ink sm:text-5xl md:text-6xl">
-                INTELLIGENT
-                <br />
-                RESUME REVIEW.
-              </h2>
-              <p className="mt-6 max-w-xl text-base text-ink-soft leading-relaxed">
-                HIRRD incorporates Gemini AI models to analyze candidate resumes against modern recruiter benchmarks. Compare your profile with real industry standards, find critical skill gaps, optimize ATS compatibility, and secure matches against active roles automatically.
-              </p>
-
-              <ul className="mt-8 space-y-3 font-mono text-xs uppercase tracking-wider text-ink">
-                <li className="flex items-center gap-3">
-                  <span className="h-1.5 w-1.5 bg-signal" />
-                  <span>Interactive ATS Compatibility Analysis</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="h-1.5 w-1.5 bg-signal" />
-                  <span>Real-time Skill Gap Mapping</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="h-1.5 w-1.5 bg-signal" />
-                  <span>Actionable suggestions & grammar checks</span>
-                </li>
-                <li className="flex items-center gap-3">
-                  <span className="h-1.5 w-1.5 bg-signal" />
-                  <span>Instant Match Score Against Published Roles</span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="mt-10 flex flex-wrap items-center gap-4">
-              <Link
-                to={ctaTo}
-                className="border border-ink bg-ink px-6 py-3 font-mono text-sm uppercase tracking-wide text-paper transition-colors hover:bg-signal hover:border-signal"
-              >
-                {ctaText} →
-              </Link>
-              {!isSignedIn && (
-                <Link
-                  to={ROUTES.signIn}
-                  className="font-mono text-xs uppercase tracking-wide text-ink-soft hover:text-signal"
-                >
-                  Or sign in to your account
-                </Link>
-              )}
-            </div>
-          </div>
-
-          {/* Graphic/Mockup Column */}
-          <div className="md:col-span-5 flex flex-col border border-grid bg-paper-dim p-6 relative overflow-hidden transition-colors duration-200 hover:border-ink-soft">
-            <div className="flex items-center justify-between border-b border-grid pb-3 mb-6">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
-                Gemini Analysis Report // IND-002
-              </span>
-              <span className="inline-block px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide bg-signal/10 text-signal border border-signal/25">
-                Live Preview
-              </span>
-            </div>
-
-            <div className="space-y-6 flex-1">
-              {/* Score section */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="border border-grid bg-paper p-3">
-                  <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block">
-                    Resume Score
-                  </span>
-                  <span className="font-display text-3xl font-extrabold text-ink mt-1 block">
-                    87<span className="text-sm font-sans font-normal text-ink-soft">/100</span>
-                  </span>
-                  <div className="mt-2 h-1 bg-paper-dim relative">
-                    <div className="absolute top-0 left-0 h-1 bg-signal" style={{ width: "87%" }} />
-                  </div>
-                </div>
-                <div className="border border-grid bg-paper p-3">
-                  <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block">
-                    ATS Score
-                  </span>
-                  <span className="font-display text-3xl font-extrabold text-ink mt-1 block">
-                    92<span className="text-sm font-sans font-normal text-ink-soft">%</span>
-                  </span>
-                  <div className="mt-2 h-1 bg-paper-dim relative">
-                    <div className="absolute top-0 left-0 h-1 bg-signal" style={{ width: "92%" }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Strengths section */}
-              <div>
-                <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block mb-1.5">
-                  Identified Strengths
-                </span>
-                <ul className="space-y-1 font-mono text-[11px] text-ink">
-                  <li className="flex gap-2 items-start">
-                    <span className="text-meadow font-bold">+</span>
-                    <span>Excellent deployment of quantifiable results in previous roles</span>
-                  </li>
-                  <li className="flex gap-2 items-start">
-                    <span className="text-meadow font-bold">+</span>
-                    <span>Strong alignment in frontend technology suite (React, Tailwind)</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Skill gap / Missing Skills */}
-              <div>
-                <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block mb-1.5">
-                  Missing Stack Skills
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {["Docker", "AWS ECS", "CI/CD Orchestration"].map((skill) => (
-                    <span
-                      key={skill}
-                      className="px-2 py-0.5 font-mono text-[10px] bg-paper border border-grid text-ink-soft uppercase tracking-wide"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Suggestions */}
-              <div>
-                <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block mb-1.5">
-                  Optimization Guidelines
-                </span>
-                <ul className="space-y-1 font-mono text-[11px] text-ink">
-                  <li className="flex gap-2 items-start">
-                    <span className="text-signal font-bold">—</span>
-                    <span>Add structural engineering detail regarding Postgres schemas</span>
-                  </li>
-                  <li className="flex gap-2 items-start">
-                    <span className="text-signal font-bold">—</span>
-                    <span>Quantify DevOps scope of your engineering workload</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="mt-6 border-t border-grid pt-3 flex items-center justify-between text-ink-soft">
-              <span className="font-mono text-[9px] uppercase">Review verified</span>
-              <span className="font-mono text-[9px] uppercase">Confidence 96%</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Product Preview — a crop of the actual Candidate Analysis dialog,
-          not a separate marketing mockup: same header, badge, metric-card,
-          and section styles as src/components/shared/candidate-analysis-dialog.tsx */}
-      <section className="border-t border-grid py-12 md:py-16">
-        <div className="text-center">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-signal">Product preview</p>
-          <h2 className="mt-4 font-display text-3xl font-extrabold uppercase leading-[0.95] tracking-tight text-ink sm:text-4xl">
-            What a recruiter sees.
-          </h2>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="mx-auto mt-10 max-w-2xl border border-grid bg-paper p-6 shadow-xl"
+        <div
+            className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-12"
+            onMouseEnter={() => setIsCapabilitiesPaused(true)}
+            onMouseLeave={() => setIsCapabilitiesPaused(false)}
         >
-          <div className="flex items-start justify-between gap-4 border-b border-grid pb-4 mb-6">
-            <div>
-              <p className="flex items-center gap-2 font-display text-lg font-bold uppercase tracking-tight text-ink">
-                <Sparkles className="h-4 w-4 text-signal" aria-hidden="true" />
-                AI Candidate Analysis
-              </p>
-              <p className="mt-1 text-sm font-medium text-ink">
-                Maya Chen <span className="text-ink-soft">— Frontend Engineer</span>
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center border border-meadow bg-meadow-dim px-3 py-1 font-mono text-xs uppercase tracking-[0.15em] text-meadow">
-                  Highly Recommended
-                </span>
-                <span className="font-mono text-xs uppercase tracking-wide text-ink-soft">
-                  Generated by Gemini
-                </span>
-              </div>
+          <div className="border border-grid md:col-span-5">
+            {AI_CAPABILITIES.map((cap, i) => {
+              const Icon = cap.icon;
+              const isActive = activeCapability === cap.key;
+              return (
+                <button
+                  key={cap.key}
+                  type="button"
+                  onClick={() => setActiveCapability(cap.key)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    "block w-full border-l-2 px-5 py-5 text-left transition-colors duration-200",
+                    i > 0 && "border-t border-t-grid",
+                    isActive ? "border-l-signal bg-paper-dim" : "border-l-transparent hover:bg-paper-dim/60"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon className={cn("h-4 w-4", isActive ? "text-signal" : "text-ink-soft")} aria-hidden="true" />
+                    <span
+                      className={cn(
+                        "font-display text-base font-bold uppercase tracking-tight",
+                        isActive ? "text-ink" : "text-ink-soft"
+                      )}
+                    >
+                      {cap.title}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-sm text-ink-soft">{cap.blurb}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {cap.items.map((item) => (
+                      <span
+                        key={item}
+                        className="border border-grid px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-ink-soft"
+                      >
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                            <div className="mt-4 h-0.5 w-full bg-grid">
+            {isActive && !isCapabilitiesPaused && (
+                <div
+                className="h-0.5 bg-signal animate-capability-progress"
+                style={{ animationDuration: "4000ms" }}
+                />
+            )}
             </div>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div className="col-span-2 border border-grid bg-paper-dim p-4 sm:col-span-1">
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Overall fit</p>
-              <p className="mt-2 font-display text-5xl font-extrabold tabular-nums text-ink">
-                94<span className="font-sans text-xl font-normal text-ink-soft">%</span>
-              </p>
-              <div className="mt-3 h-1.5 w-full bg-paper">
-                <div className="h-1.5 bg-signal" style={{ width: "94%" }} />
-              </div>
-            </div>
-            <div className="border border-grid p-4">
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Skills match</p>
-              <p className="mt-2 font-display text-3xl font-extrabold tabular-nums text-ink">
-                91<span className="font-sans text-base font-normal text-ink-soft">%</span>
-              </p>
-              <div className="mt-3 h-1.5 w-full bg-paper-dim">
-                <div className="h-1.5 bg-ink" style={{ width: "91%" }} />
-              </div>
-            </div>
-            <div className="border border-grid p-4">
-              <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Experience match</p>
-              <p className="mt-2 font-display text-3xl font-extrabold tabular-nums text-ink">
-                88<span className="font-sans text-base font-normal text-ink-soft">%</span>
-              </p>
-              <div className="mt-3 h-1.5 w-full bg-paper-dim">
-                <div className="h-1.5 bg-ink" style={{ width: "88%" }} />
-              </div>
-            </div>
-          </div>
+          <div className="md:col-span-7">
+            <AnimatePresence mode="wait">
+              {activeCapability === "resume-review" && (
+                <motion.div
+                  key="resume-review"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="flex h-full flex-col border border-grid bg-paper-dim p-6"
+                >
+                  <div className="flex items-center justify-between border-b border-grid pb-3 mb-6">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-ink-soft">
+                      Gemini Analysis Report // IND-002
+                    </span>
+                    <span className="inline-block px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide bg-signal/10 text-signal border border-signal/25">
+                      Live Preview
+                    </span>
+                  </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div>
-              <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Strengths</p>
-              <ul className="space-y-1.5">
-                <li className="flex gap-2 text-sm text-ink">
-                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-meadow" aria-hidden="true" />
-                  Shipped production React + TypeScript at scale
-                </li>
-                <li className="flex gap-2 text-sm text-ink">
-                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-meadow" aria-hidden="true" />
-                  Clear, quantified impact across past roles
-                </li>
-              </ul>
-            </div>
-            <div>
-              <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Missing skills</p>
-              <div className="flex flex-wrap gap-2">
-                {["GraphQL", "Kubernetes"].map((skill) => (
-                  <Chip key={skill} className="text-signal border-signal/40">
-                    {skill}
-                  </Chip>
-                ))}
-              </div>
-            </div>
+                  <div className="space-y-6 flex-1">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="border border-grid bg-paper p-3">
+                        <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block">
+                          Resume Score
+                        </span>
+                        <span className="font-display text-3xl font-extrabold text-ink mt-1 block">
+                          87<span className="text-sm font-sans font-normal text-ink-soft">/100</span>
+                        </span>
+                        <div className="mt-2 h-1 bg-paper-dim relative">
+                          <div className="absolute top-0 left-0 h-1 bg-signal" style={{ width: "87%" }} />
+                        </div>
+                      </div>
+                      <div className="border border-grid bg-paper p-3">
+                        <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block">
+                          ATS Score
+                        </span>
+                        <span className="font-display text-3xl font-extrabold text-ink mt-1 block">
+                          92<span className="text-sm font-sans font-normal text-ink-soft">%</span>
+                        </span>
+                        <div className="mt-2 h-1 bg-paper-dim relative">
+                          <div className="absolute top-0 left-0 h-1 bg-signal" style={{ width: "92%" }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block mb-1.5">
+                        Identified Strengths
+                      </span>
+                      <ul className="space-y-1 font-mono text-[11px] text-ink">
+                        <li className="flex gap-2 items-start">
+                          <span className="text-meadow font-bold">+</span>
+                          <span>Excellent deployment of quantifiable results in previous roles</span>
+                        </li>
+                        <li className="flex gap-2 items-start">
+                          <span className="text-meadow font-bold">+</span>
+                          <span>Strong alignment in frontend technology suite (React, Tailwind)</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <span className="font-mono text-[9px] uppercase tracking-wider text-ink-soft block mb-1.5">
+                        Missing Stack Skills
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["Docker", "AWS ECS", "CI/CD Orchestration"].map((skill) => (
+                          <span
+                            key={skill}
+                            className="px-2 py-0.5 font-mono text-[10px] bg-paper border border-grid text-ink-soft uppercase tracking-wide"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 border-t border-grid pt-3 flex items-center justify-between text-ink-soft">
+                    <span className="font-mono text-[9px] uppercase">Review verified</span>
+                    <span className="font-mono text-[9px] uppercase">Confidence 96%</span>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeCapability === "mock-interview" && (
+                <motion.div
+                  key="mock-interview"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="border border-grid bg-paper p-6 shadow-xl"
+                >
+                  <div className="flex items-start justify-between gap-4 border-b border-grid pb-4 mb-6">
+                    <div>
+                      <p className="flex items-center gap-2 font-display text-lg font-bold uppercase tracking-tight text-ink">
+                        <Sparkles className="h-4 w-4 text-signal" aria-hidden="true" />
+                        Interview Feedback
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-ink">Frontend Engineer — Practice Session</p>
+                    </div>
+                    <span className="font-mono text-xs uppercase tracking-wide text-ink-soft">Generated by Gemini</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="border border-grid bg-paper-dim p-4">
+                      <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Overall</p>
+                      <p className="mt-2 font-display text-4xl font-extrabold tabular-nums text-ink">
+                        88<span className="font-sans text-lg font-normal text-ink-soft">%</span>
+                      </p>
+                      <div className="mt-3 h-1.5 w-full bg-paper">
+                        <div className="h-1.5 bg-signal" style={{ width: "88%" }} />
+                      </div>
+                    </div>
+                    <div className="border border-grid p-4">
+                      <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Technical</p>
+                      <p className="mt-2 font-display text-2xl font-extrabold tabular-nums text-ink">
+                        85<span className="font-sans text-sm font-normal text-ink-soft">%</span>
+                      </p>
+                      <div className="mt-3 h-1.5 w-full bg-paper-dim">
+                        <div className="h-1.5 bg-ink" style={{ width: "85%" }} />
+                      </div>
+                    </div>
+                    <div className="border border-grid p-4">
+                      <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Communication</p>
+                      <p className="mt-2 font-display text-2xl font-extrabold tabular-nums text-ink">
+                        90<span className="font-sans text-sm font-normal text-ink-soft">%</span>
+                      </p>
+                      <div className="mt-3 h-1.5 w-full bg-paper-dim">
+                        <div className="h-1.5 bg-ink" style={{ width: "90%" }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Strengths</p>
+                    <ul className="space-y-1.5">
+                      <li className="flex gap-2 text-sm text-ink">
+                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-meadow" aria-hidden="true" />
+                        Clear explanation of the React reconciliation question
+                      </li>
+                      <li className="flex gap-2 text-sm text-ink">
+                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-meadow" aria-hidden="true" />
+                        Confident, structured answers under time pressure
+                      </li>
+                    </ul>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeCapability === "candidate-analysis" && (
+                <motion.div
+                  key="candidate-analysis"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="border border-grid bg-paper p-6 shadow-xl"
+                >
+                  <div className="flex items-start justify-between gap-4 border-b border-grid pb-4 mb-6">
+                    <div>
+                      <p className="flex items-center gap-2 font-display text-lg font-bold uppercase tracking-tight text-ink">
+                        <Sparkles className="h-4 w-4 text-signal" aria-hidden="true" />
+                        AI Candidate Analysis
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-ink">
+                        Maya Chen <span className="text-ink-soft">— Frontend Engineer</span>
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center border border-meadow bg-meadow-dim px-3 py-1 font-mono text-xs uppercase tracking-[0.15em] text-meadow">
+                          Highly Recommended
+                        </span>
+                        <span className="font-mono text-xs uppercase tracking-wide text-ink-soft">
+                          Generated by Gemini
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <div className="col-span-2 border border-grid bg-paper-dim p-4 sm:col-span-1">
+                      <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Overall fit</p>
+                      <p className="mt-2 font-display text-5xl font-extrabold tabular-nums text-ink">
+                        94<span className="font-sans text-xl font-normal text-ink-soft">%</span>
+                      </p>
+                      <div className="mt-3 h-1.5 w-full bg-paper">
+                        <div className="h-1.5 bg-signal" style={{ width: "94%" }} />
+                      </div>
+                    </div>
+                    <div className="border border-grid p-4">
+                      <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Skills match</p>
+                      <p className="mt-2 font-display text-3xl font-extrabold tabular-nums text-ink">
+                        91<span className="font-sans text-base font-normal text-ink-soft">%</span>
+                      </p>
+                      <div className="mt-3 h-1.5 w-full bg-paper-dim">
+                        <div className="h-1.5 bg-ink" style={{ width: "91%" }} />
+                      </div>
+                    </div>
+                    <div className="border border-grid p-4">
+                      <p className="font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Experience match</p>
+                      <p className="mt-2 font-display text-3xl font-extrabold tabular-nums text-ink">
+                        88<span className="font-sans text-base font-normal text-ink-soft">%</span>
+                      </p>
+                      <div className="mt-3 h-1.5 w-full bg-paper-dim">
+                        <div className="h-1.5 bg-ink" style={{ width: "88%" }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div>
+                      <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Strengths</p>
+                      <ul className="space-y-1.5">
+                        <li className="flex gap-2 text-sm text-ink">
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-meadow" aria-hidden="true" />
+                          Shipped production React + TypeScript at scale
+                        </li>
+                        <li className="flex gap-2 text-sm text-ink">
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-meadow" aria-hidden="true" />
+                          Clear, quantified impact across past roles
+                        </li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-ink-soft">Missing skills</p>
+                      <div className="flex flex-wrap gap-2">
+                        {["GraphQL", "Kubernetes"].map((skill) => (
+                          <Chip key={skill} className="text-signal border-signal/40">
+                            {skill}
+                          </Chip>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </motion.div>
+        </div>
       </section>
 
       {/* Why HIRRD — the comparison, minimal */}
