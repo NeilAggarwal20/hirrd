@@ -1,13 +1,14 @@
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/constants/routes";
 import { formatRelativeDate } from "@/utils/format";
 import type { MockInterviewHistoryItem } from "@/api/mock-interview";
 
 interface InterviewHistoryCardProps {
   interview: MockInterviewHistoryItem;
-  onView: () => void;
 }
 
-export function InterviewHistoryCard({ interview, onView }: InterviewHistoryCardProps) {
+export function InterviewHistoryCard({ interview }: InterviewHistoryCardProps) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-4 border-b border-grid py-4 last:border-b-0">
       <div className="min-w-0">
@@ -22,8 +23,10 @@ export function InterviewHistoryCard({ interview, onView }: InterviewHistoryCard
         <span className="font-mono text-xs uppercase tracking-wide text-ink-soft">
           Overall <span className="font-display text-base font-bold text-ink">{interview.overallScore}%</span>
         </span>
-        <Button variant="outline" size="sm" onClick={onView} className="cursor-pointer">
-          View feedback
+        <Button asChild variant="outline" size="sm">
+          <Link to={ROUTES.candidateInterviewResults(interview.id)} state={{ interview }}>
+            View feedback
+          </Link>
         </Button>
       </div>
     </li>

@@ -36,21 +36,21 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-const { data: user } = await supabaseAdmin
-  .from("users")
-  .select("id, role")
-  .eq("id", candidateId)
-  .maybeSingle();
+    const { data: user } = await supabaseAdmin
+      .from("users")
+      .select("id, role")
+      .eq("id", candidateId)
+      .maybeSingle();
 
-if (!user || user.role !== "candidate") {
-  return new Response(
-    JSON.stringify({ error: "Only candidates can submit mock interviews." }),
-    {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (!user || user.role !== "candidate") {
+      return new Response(
+        JSON.stringify({ error: "Only candidates can submit mock interviews." }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
-  );
-}
 
     const { data: job } = await supabaseAdmin
       .from("jobs")

@@ -45,6 +45,12 @@ const CandidateApplicationsPage = lazy(() =>
 const CandidateSavedJobsPage = lazy(() =>
   import("@/pages/candidate/candidate-saved-jobs-page").then((m) => ({ default: m.CandidateSavedJobsPage }))
 );
+const CandidateInterviewsPage = lazy(() =>
+  import("@/pages/candidate/candidate-interviews-page").then((m) => ({ default: m.CandidateInterviewsPage }))
+);
+const InterviewResultsPage = lazy(() =>
+  import("@/pages/candidate/interview-results-page").then((m) => ({ default: m.InterviewResultsPage }))
+);
 const CandidateProfilePage = lazy(() =>
   import("@/pages/candidate/candidate-profile-page").then((m) => ({ default: m.CandidateProfilePage }))
 );
@@ -60,6 +66,7 @@ const candidateNavItems = [
   { label: "Overview", to: ROUTES.candidateDashboard, end: true },
   { label: "Applications", to: ROUTES.candidateApplications },
   { label: "Saved roles", to: ROUTES.candidateSaved, tourId: "candidate-nav-saved" },
+  { label: "Interviews", to: ROUTES.candidateInterviews },
   { label: "Profile", to: ROUTES.candidateProfile, tourId: "candidate-nav-profile" },
 ];
 
@@ -131,6 +138,8 @@ export default function App() {
             <Route path={ROUTES.candidateDashboard} element={<CandidateDashboardPage />} />
             <Route path={ROUTES.candidateApplications} element={<CandidateApplicationsPage />} />
             <Route path={ROUTES.candidateSaved} element={<CandidateSavedJobsPage />} />
+            <Route path={ROUTES.candidateInterviews} element={<CandidateInterviewsPage />} />
+            <Route path={ROUTES.candidateInterviewResults(":id")} element={<InterviewResultsPage />} />
             <Route path={ROUTES.candidateProfile} element={<CandidateProfilePage />} />
           </Route>
 

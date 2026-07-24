@@ -21,6 +21,11 @@ export function formatRelativeDate(iso: string): string {
   return date.toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" });
 }
 
+/** Absolute date, for records meant to be read on their own (e.g. a permanent results page) rather than in a scannable list. */
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" });
+}
+
 export function formatEmploymentType(type: string): string {
   return type
     .split("-")

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Share2, Users, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -13,8 +13,7 @@ import { Chip } from "@/components/shared/chip";
 import { JobMatchDialog } from "@/components/shared/job-match-dialog";
 import { InterviewStartDialog } from "@/components/shared/interview-start-dialog";
 import { InterviewSessionDialog } from "@/components/shared/interview-session-dialog";
-import { InterviewResultsDialog } from "@/components/shared/interview-results-dialog";
-import type { MockInterviewFeedback } from "@/api/mock-interview";
+import type { MockInterviewResult } from "@/api/mock-interview";
 import { pushNotification } from "@/lib/notifications";
 import {
   formatEmploymentType,
@@ -24,9 +23,11 @@ import {
   formatSalaryRange,
 } from "@/utils/format";
 
+
 export function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const jobId = id ?? "";
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { profile } = useCurrentUser();
   const candidateId = profile?.id ?? "";
@@ -34,8 +35,6 @@ export function JobDetailPage() {
   const [isMatchOpen, setIsMatchOpen] = useState(false);
   const [isInterviewStartOpen, setIsInterviewStartOpen] = useState(false);
   const [isInterviewSessionOpen, setIsInterviewSessionOpen] = useState(false);
-  const [isInterviewResultsOpen, setIsInterviewResultsOpen] = useState(false);
-  const [interviewResult, setInterviewResult] = useState<MockInterviewFeedback | null>(null);
   const interview = useMockInterview(jobId, candidateId || undefined);
 
   const jobQuery = useQuery({
@@ -50,17 +49,17 @@ export function JobDetailPage() {
     enabled: !!id,
   });
 
-    const hasAppliedQuery = useQuery({
+  const hasAppliedQuery = useQuery({
     queryKey: ["has-applied", id, candidateId],
     queryFn: () => hasAppliedToJob(jobId, candidateId),
     enabled: !!id && isCandidate && !!candidateId,
-    });
+  });
 
-    const isSavedQuery = useQuery({
+  const isSavedQuery = useQuery({
     queryKey: ["is-saved", id, candidateId],
     queryFn: () => isJobSavedByCandidate(jobId, candidateId),
     enabled: !!id && isCandidate && !!candidateId,
-    });
+  });
 
   const relatedJobsQuery = useQuery({
     queryKey: ["related-jobs", jobQuery.data?.category],
@@ -119,10 +118,28 @@ export function JobDetailPage() {
     interview.start();
   }
 
-  function handleInterviewSubmitted(result: MockInterviewFeedback) {
-    setInterviewResult(result);
+  function handleInterviewSubmitted(result: MockInterviewResult) {
     setIsInterviewSessionOpen(false);
-    setIsInterviewResultsOpen(true);
+    navigate(ROUTES.candidateInterviewResults(result.id), {
+      state: {
+        interview: {
+          id: result.id,
+          jobId,
+          jobTitle: job?.title ?? "This role",
+          companyName: job?.companies?.name ?? "—",
+          overallScore: result.overallScore,
+          technicalScore: result.technicalScore,
+          communicationScore: result.communicationScore,
+          strengths: result.strengths,
+          weaknesses: result.weaknesses,
+          improvements: result.improvements,
+          sampleBetterAnswers: result.sampleBetterAnswers,
+          questions: interview.questions,
+          answers: interview.answers,
+          createdAt: result.createdAt,
+        },
+      },
+    });
   }
 
   async function handleShare() {
@@ -332,12 +349,6 @@ export function JobDetailPage() {
             onSubmit={interview.submit}
             onRetryGeneration={interview.start}
             onSubmitted={handleInterviewSubmitted}
-          />
-          <InterviewResultsDialog
-            isOpen={isInterviewResultsOpen}
-            onOpenChange={setIsInterviewResultsOpen}
-            jobTitle={job.title}
-            result={interviewResult}
           />
         </>
       )}

@@ -102,7 +102,7 @@ export function LandingPage() {
         const nextIndex = (currentIndex + 1) % AI_CAPABILITIES.length;
         return AI_CAPABILITIES[nextIndex].key;
         });
-    }, 4000);
+    }, 2500);
 
     return () => clearTimeout(timer);
     }, [activeCapability, isCapabilitiesPaused]);
@@ -314,7 +314,7 @@ export function LandingPage() {
             {isActive && !isCapabilitiesPaused && (
                 <div
                 className="h-0.5 bg-signal animate-capability-progress"
-                style={{ animationDuration: "4000ms" }}
+                style={{ animationDuration: "2500ms" }}
                 />
             )}
             </div>

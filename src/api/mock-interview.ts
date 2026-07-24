@@ -92,42 +92,68 @@ interface MockInterviewJoinRow extends MockInterviewRow {
   jobs: { title: string; companies: { name: string } | null } | null;
 }
 
+function mapMockInterviewRow(row: MockInterviewJoinRow): MockInterviewHistoryItem {
+  const feedback = (row.feedback_json ?? {}) as Partial<MockInterviewFeedback> & {
+    questions?: InterviewQuestion[];
+    answers?: string[];
+  };
+
+  return {
+    id: row.id,
+    jobId: row.job_id,
+    jobTitle: row.jobs?.title ?? "Deleted role",
+    companyName: row.jobs?.companies?.name ?? "—",
+    overallScore: row.overall_score,
+    technicalScore: row.technical_score,
+    communicationScore: row.communication_score,
+    strengths: feedback.strengths ?? [],
+    weaknesses: feedback.weaknesses ?? [],
+    improvements: feedback.improvements ?? [],
+    sampleBetterAnswers: feedback.sampleBetterAnswers ?? [],
+    questions: feedback.questions ?? [],
+    answers: feedback.answers ?? [],
+    createdAt: row.created_at,
+  };
+}
+
+const MOCK_INTERVIEW_SELECT = `id, job_id, overall_score, technical_score, communication_score, feedback_json, created_at,
+   jobs ( title, companies ( name ) )`;
+
 /** Lists the caller's own past mock interviews, most recent first. */
 export async function fetchMyMockInterviews(candidateId: string): Promise<MockInterviewHistoryItem[]> {
   const { data, error } = await supabase
     .from("mock_interviews")
-    .select(
-      `id, job_id, overall_score, technical_score, communication_score, feedback_json, created_at,
-       jobs ( title, companies ( name ) )`
-    )
+    .select(MOCK_INTERVIEW_SELECT)
     .eq("candidate_id", candidateId)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
 
   const rows = data as unknown as MockInterviewJoinRow[];
+  return rows.map(mapMockInterviewRow);
+}
 
-  return rows.map((row) => {
-    const feedback = (row.feedback_json ?? {}) as Partial<MockInterviewFeedback> & {
-      questions?: InterviewQuestion[];
-      answers?: string[];
-    };
+/**
+ * Fetches one past interview by id — used by the Interview Results page
+ * when it's opened directly (a refresh, a bookmark, or a shared link)
+ * rather than arriving with the result already in navigation state.
+ * RLS (mock_interviews_select_owner) enforces the candidate_id match
+ * server-side regardless, but filtering here too keeps a mistaken id
+ * from ever momentarily resolving to someone else's row client-side.
+ */
+export async function fetchMockInterviewById(
+  id: string,
+  candidateId: string
+): Promise<MockInterviewHistoryItem | null> {
+  const { data, error } = await supabase
+    .from("mock_interviews")
+    .select(MOCK_INTERVIEW_SELECT)
+    .eq("id", id)
+    .eq("candidate_id", candidateId)
+    .maybeSingle();
 
-    return {
-      id: row.id,
-      jobId: row.job_id,
-      jobTitle: row.jobs?.title ?? "Deleted role",
-      companyName: row.jobs?.companies?.name ?? "—",
-      overallScore: row.overall_score,
-      technicalScore: row.technical_score,
-      communicationScore: row.communication_score,
-      strengths: feedback.strengths ?? [],
-      weaknesses: feedback.weaknesses ?? [],
-      improvements: feedback.improvements ?? [],
-      sampleBetterAnswers: feedback.sampleBetterAnswers ?? [],
-      questions: feedback.questions ?? [],
-      answers: feedback.answers ?? [],
-      createdAt: row.created_at,
-    };
-  });
+  if (error) throw error;
+  if (!data) return null;
+
+  return mapMockInterviewRow(data as unknown as MockInterviewJoinRow);
 }
