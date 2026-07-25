@@ -18,7 +18,7 @@ import { getCallerId } from "../_shared/auth.ts";
 import { extractResumeText } from "../_shared/pdf-text.ts";
 import { resolveResumeObjectPath } from "../_shared/storage-path.ts";
 import { stripHtml } from "../_shared/strip-html.ts";
-import { callGeminiForJson } from "../_shared/gemini.ts";
+import { callGeminiForJson, GeminiServiceError } from "../_shared/gemini.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -117,15 +117,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     console.log("[1] Authenticating candidate and parsing body...");
-    let candidateId: string;
-
-try {
-  candidateId = await getCallerId(req);
-  console.log("Authenticated:", candidateId);
-} catch (e) {
-  console.error("AUTH ERROR:", e.message, e.stack);
-  throw e;
-}
+    const candidateId = await getCallerId(req);
     const { jobId } = (await req.json()) as { jobId?: string };
     console.log(`[1] candidateId=${candidateId} jobId=${jobId}`);
 
@@ -230,6 +222,15 @@ try {
     console.log(`[5] Generated ${questions.length} questions`);
     return new Response(JSON.stringify({ questions }), { status: 200, headers: corsHeaders });
   } catch (error) {
+    if (error instanceof GeminiServiceError) {
+      // Already a short, user-safe message with the right status — the
+      // full Gemini failure detail was logged inside callGeminiForJson.
+      console.error("mock-interview-generate: Gemini service error:", error.status, error.message);
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.status,
+        headers: corsHeaders,
+      });
+    }
     console.error("mock-interview-generate fatal error:", error.message, error.stack, error);
     return new Response(JSON.stringify({ error: error.message || "Failed to generate your mock interview" }), {
       status: 500,

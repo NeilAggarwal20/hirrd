@@ -78,6 +78,7 @@ export function InterviewSessionDialog({
   const isLastQuestion = currentIndex === total - 1;
   const currentAnswer = answers[currentIndex] ?? "";
   const isSubmitting = phase === "submitting";
+  const isLiveQuestion = (phase === "in-progress" || phase === "submitting") && total > 0;
 
   // Belt-and-suspenders alongside the disabled button and the hook's own
   // in-flight de-duplication: guarantees this handler can't kick off a
@@ -103,66 +104,80 @@ export function InterviewSessionDialog({
     <Dialog.Root open={isOpen} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/55 backdrop-blur-xs z-50 transition-all duration-200" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 w-[90vw] max-w-xl -translate-x-1/2 -translate-y-1/2 border border-grid bg-paper p-6 shadow-xl z-50 focus:outline-none animate-in fade-in zoom-in-95 duration-200">
-          <div className="flex items-start justify-between gap-4 border-b border-grid pb-4 mb-5">
-            <Dialog.Title className="flex items-center gap-2 font-display text-lg font-bold uppercase tracking-tight text-ink">
-              <Sparkles className="h-4 w-4 text-signal" aria-hidden="true" />
-              AI Mock Interview
-            </Dialog.Title>
-            <Dialog.Close asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 shrink-0 p-0 border-grid hover:border-signal hover:text-signal text-ink-soft cursor-pointer"
-                aria-label="Close dialog"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </Dialog.Close>
+        {/*
+          Three fixed-height-independent regions stacked in a column:
+          header (title +, once a question is live, the progress bar)
+          and footer (status line + Previous/Next/Submit) never scroll —
+          only the middle (question + answer) does. max-h caps the whole
+          dialog so it can never exceed the viewport; overflow-hidden on
+          the outer element keeps the border/corners clean while the
+          middle region owns its own overflow-y-auto.
+        */}
+        <Dialog.Content className="fixed top-1/2 left-1/2 flex max-h-[90vh] w-[90vw] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden border border-grid bg-paper shadow-xl z-50 focus:outline-none animate-in fade-in zoom-in-95 duration-200">
+          <div className="shrink-0 border-b border-grid p-6 pb-5">
+            <div className="flex items-start justify-between gap-4">
+              <Dialog.Title className="flex items-center gap-2 font-display text-lg font-bold uppercase tracking-tight text-ink">
+                <Sparkles className="h-4 w-4 text-signal" aria-hidden="true" />
+                AI Mock Interview
+              </Dialog.Title>
+              <Dialog.Close asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 shrink-0 p-0 border-grid hover:border-signal hover:text-signal text-ink-soft cursor-pointer"
+                  aria-label="Close dialog"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </Dialog.Close>
+            </div>
+            <Dialog.Description className="sr-only">
+              Answer one interview question at a time, then submit for AI feedback.
+            </Dialog.Description>
+
+            {isLiveQuestion && (
+              <div className="mt-5">
+                <InterviewProgress currentIndex={currentIndex} total={total} />
+              </div>
+            )}
           </div>
-          <Dialog.Description className="sr-only">
-            Answer one interview question at a time, then submit for AI feedback.
-          </Dialog.Description>
 
-          {phase === "generating" && (
-            <div className="space-y-6" aria-live="polite" role="status">
-              <RotatingCaption messages={GENERATING_MESSAGES} />
-              <div aria-hidden="true" className="animate-pulse space-y-3">
-                <div className="h-5 w-2/3 bg-paper-dim" />
-                <div className="h-24 bg-paper-dim" />
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">
+            {phase === "generating" && (
+              <div className="space-y-6" aria-live="polite" role="status">
+                <RotatingCaption messages={GENERATING_MESSAGES} />
+                <div aria-hidden="true" className="animate-pulse space-y-3">
+                  <div className="h-5 w-2/3 bg-paper-dim" />
+                  <div className="h-24 bg-paper-dim" />
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {phase === "error" && (
-            <div className="border border-grid p-6 text-center">
-              <p className="text-sm text-ink">{errorMessage}</p>
-              <Button variant="outline" size="sm" className="mt-4 cursor-pointer" onClick={onRetryGeneration}>
-                Try again
-              </Button>
-            </div>
-          )}
-
-          {(phase === "in-progress" || phase === "submitting") && total > 0 && (
-            <div>
-              <InterviewProgress currentIndex={currentIndex} total={total} />
-
-              <div className="mt-6">
-                <InterviewQuestionCard
-                  questionKey={currentIndex}
-                  question={questions[currentIndex]}
-                  answer={currentAnswer}
-                  onAnswerChange={onAnswerChange}
-                  disabled={isSubmitting}
-                />
+            {phase === "error" && (
+              <div className="border border-grid p-6 text-center">
+                <p className="text-sm text-ink">{errorMessage}</p>
+                <Button variant="outline" size="sm" className="mt-4 cursor-pointer" onClick={onRetryGeneration}>
+                  Try again
+                </Button>
               </div>
+            )}
 
-              {/* Reserved-height status line: whichever of these three
-                  states is showing, the button row below never moves.
-                  This is what used to shift the Submit button down —
-                  the row's presence/absence and this text's
-                  presence/absence used to be conflated. */}
-              <div className="mt-4 min-h-[1.25rem]" aria-live="polite" role="status">
+            {isLiveQuestion && (
+              <InterviewQuestionCard
+                questionKey={currentIndex}
+                question={questions[currentIndex]}
+                answer={currentAnswer}
+                onAnswerChange={onAnswerChange}
+                disabled={isSubmitting}
+              />
+            )}
+          </div>
+
+          {isLiveQuestion && (
+            <div className="shrink-0 border-t border-grid p-6 pt-5">
+              {/* Reserved-height status line: whichever of these two
+                  states is showing, the button row below never moves. */}
+              <div className="min-h-[1.25rem]" aria-live="polite" role="status">
                 {isSubmitting ? (
                   <RotatingCaption messages={SUBMITTING_MESSAGES} />
                 ) : (
@@ -170,7 +185,7 @@ export function InterviewSessionDialog({
                 )}
               </div>
 
-              <div className="mt-2 flex items-center justify-between border-t border-grid pt-5">
+              <div className="mt-2 flex items-center justify-between">
                 <Button
                   variant="outline"
                   size="sm"

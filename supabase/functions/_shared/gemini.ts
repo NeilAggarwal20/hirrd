@@ -1,6 +1,3 @@
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-3.5-flash";
-
 // One initial attempt + up to 3 retries. Delays use exponential backoff
 // with full jitter (random between 0 and the exponential cap) so that
 // concurrent requests retrying at the same time don't all hammer Gemini
@@ -9,6 +6,9 @@ const MAX_ATTEMPTS = 4;
 const BASE_DELAY_MS = 600;
 const MAX_DELAY_MS = 6000;
 
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-3.5-flash";
+
 // Statuses worth retrying: rate limiting and server-side/transient
 // failures. Anything else (400 bad request, 401/403 auth, etc.) won't
 // be fixed by retrying, so those fail fast instead.
@@ -16,6 +16,24 @@ const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 
 interface GeminiApiResponse {
   candidates?: { content?: { parts?: { text?: string }[] } }[];
+}
+
+/**
+ * Thrown by callGeminiForJson for every failure path. `.message` is
+ * always short, generic, and safe to show a user as-is (never the raw
+ * Gemini SDK/API error text); `.status` is the HTTP status the calling
+ * edge function should respond with. Callers just need to check
+ * `error instanceof GeminiServiceError` and use both fields directly
+ * instead of collapsing every failure into a flat 500.
+ */
+export class GeminiServiceError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "GeminiServiceError";
+    this.status = status;
+  }
 }
 
 function backoffDelayMs(attempt: number): number {
@@ -27,29 +45,55 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** The friendly, user-facing message + HTTP status for a Gemini HTTP status once every retry is exhausted. */
+function messageForExhaustedStatus(status: number): { message: string; httpStatus: number } {
+  if (status === 429) {
+    return {
+      message: "The AI service has temporarily reached its request limit. Please try again in about a minute.",
+      httpStatus: 429,
+    };
+  }
+  if (status === 503) {
+    return { message: "The AI service is temporarily busy. Please try again shortly.", httpStatus: 503 };
+  }
+  // 500/502/504 — no distinct copy requested for these; grouped with the
+  // general "temporarily unavailable" wording, reported as 503 since the
+  // upstream AI dependency (not our own server) is what's unavailable.
+  return { message: "The AI service is temporarily unavailable. Please try again.", httpStatus: 503 };
+}
+
 function parseGeminiJson(json: unknown): unknown {
   const text = (json as GeminiApiResponse)?.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (!text) {
     console.error("[gemini] response had no text content:", JSON.stringify(json).slice(0, 500));
-    throw new Error("AI service returned an unexpected response. Please try again.");
+    throw new GeminiServiceError("AI service returned an unexpected response. Please try again.", 502);
   }
 
   try {
+    return JSON.parse(text);
+  } catch {
     const cleaned = text
-      .replace(/^```json\s*/, "")
-      .replace(/^```\s*/, "")
+      .replace(/^```(?:json)?\s*/i, "")
       .replace(/```\s*$/, "")
       .trim();
 
     try {
       return JSON.parse(cleaned);
-    } catch {
-      console.error("[gemini] response was not valid JSON:", text.slice(0, 500));
-      throw new Error("AI service returned an unexpected response. Please try again.");
-    }
-  } catch (e) {
-    throw e;
+} catch (parseError) {
+  console.error("[gemini] JSON parse error:", parseError);
+
+  console.error(
+    "[gemini] Raw response:",
+    text
+  );
+
+  throw new GeminiServiceError(
+    "AI service returned an unexpected response. Please try again.",
+    502,
+    { cause: parseError }
+  );
+}
   }
 }
 
@@ -57,18 +101,21 @@ function parseGeminiJson(json: unknown): unknown {
  * Calls Gemini and parses its response as JSON, automatically retrying
  * transient failures — 429/500/502/503/504 responses, and network-level
  * errors like timeouts or connection resets — with exponential backoff
- * and jitter before giving up.
+ * and jitter before giving up. Permanent failures (400 bad request,
+ * 401/403 auth, and anything else not in RETRYABLE_STATUSES) are not
+ * retried; retrying can't fix those.
  *
- * Only once every attempt is exhausted does this throw, and it always
- * throws a short, generic, user-safe message. The actual status code and
- * response body are logged (console.error/warn) for debugging but never
- * included in what's thrown — callers read `.message` straight into an
- * HTTP response body, so anything thrown here is what the end user sees.
+ * Every failure path throws a GeminiServiceError: a short, generic,
+ * user-safe message paired with the HTTP status the caller should
+ * respond with. The actual status code and response body are logged
+ * (console.error/console.warn) for debugging but never included in
+ * what's thrown — nothing from the raw Gemini SDK/API response ever
+ * reaches the frontend.
  */
 export async function callGeminiForJson(prompt: string): Promise<unknown> {
   if (!GEMINI_API_KEY) {
     console.error("[gemini] GEMINI_API_KEY is not configured");
-    throw new Error("AI service is not configured. Please contact support.");
+    throw new GeminiServiceError("AI service is not configured. Please contact support.", 500);
   }
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -76,7 +123,7 @@ export async function callGeminiForJson(prompt: string): Promise<unknown> {
 
     try {
       response = await fetch(
-        `[https://generativelanguage.googleapis.com/v1beta/models/$](https://generativelanguage.googleapis.com/v1beta/models/$){GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -97,7 +144,10 @@ export async function callGeminiForJson(prompt: string): Promise<unknown> {
         await sleep(delay);
         continue;
       }
-      throw new Error("AI service is temporarily busy. Please try again in a moment.", { cause: networkError });
+      console.error(`[gemini] exhausted all ${MAX_ATTEMPTS} attempts — last failure was a network error`);
+      throw new GeminiServiceError("The AI service is temporarily unavailable. Please try again.", 503, {
+        cause: networkError,
+      });
     }
 
     if (response.ok) {
@@ -121,15 +171,18 @@ export async function callGeminiForJson(prompt: string): Promise<unknown> {
 
     if (isRetryable) {
       console.error(`[gemini] exhausted all ${MAX_ATTEMPTS} attempts (last status ${response.status})`);
-      throw new Error("AI service is temporarily busy. Please try again in a moment.");
+      const { message, httpStatus } = messageForExhaustedStatus(response.status);
+      throw new GeminiServiceError(message, httpStatus);
     }
 
-    // Non-retryable status — fail fast rather than burn through retries
-    // on something retrying can't fix.
-    throw new Error("Couldn't process that request right now. Please try again.");
+    // Non-retryable status (400 bad request, 401/403 auth, etc.) — fail
+    // fast rather than burn through retries on something retrying can't
+    // fix. 502 (not Gemini's own status) since this is our server's
+    // upstream dependency failing, not the caller's own request.
+    throw new GeminiServiceError("Couldn't process that request right now. Please try again.", 502);
   }
 
   // Unreachable (the loop above always returns or throws), but keeps
   // this a total function for TypeScript and any future refactor.
-  throw new Error("AI service is temporarily busy. Please try again in a moment.");
+  throw new GeminiServiceError("The AI service is temporarily unavailable. Please try again.", 503);
 }
