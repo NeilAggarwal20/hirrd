@@ -81,12 +81,6 @@ function parseGeminiJson(json: unknown): unknown {
     try {
       return JSON.parse(cleaned);
 } catch (parseError) {
-  console.error("[gemini] JSON parse error:", parseError);
-
-  console.error(
-    "[gemini] Raw response:",
-    text
-  );
 
   throw new GeminiServiceError(
     "AI service returned an unexpected response. Please try again.",
